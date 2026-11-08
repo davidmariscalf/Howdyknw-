@@ -66,7 +66,7 @@ function leave(ws){
 }
 wss.on("connection",ws=>{
   ws.id=crypto.randomUUID();
-  ws.room=null;ws.role=null;
+  ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;
   ws.on("message",raw=>{
     let m;
     try{m=JSON.parse(raw.toString());}catch{return send(ws,{type:"error",message:"JSON inválido"});}
@@ -76,15 +76,33 @@ wss.on("connection",ws=>{
       if(!/^[A-Z0-9]{8,16}$/.test(roomCode)||!["source","listener"].includes(role))return send(ws,{type:"error",message:"Sala o rol no válido"});
       const room=getRoom(roomCode);
       if(role==="source"&&room.source)return send(ws,{type:"error",message:"Esta sala ya tiene un micrófono activo"});
-      ws.room=roomCode;ws.role=role;peers.set(ws.id,ws);
+      ws.room=roomCode;ws.role=role;
+      ws.audioTransport=role==="source"&&m.transport==="pcm16"?"pcm16":"webrtc";
+      peers.set(ws.id,ws);
       if(role==="source"){
         room.source=ws;
-        for(const listener of room.listeners.values())send(ws,{type:"listener-joined",id:listener.id});
+        for(const listener of room.listeners.values()){
+          send(listener,{type:"source-mode",transport:ws.audioTransport});
+          if(ws.audioTransport==="webrtc")send(ws,{type:"listener-joined",id:listener.id});
+        }
       }else{
         room.listeners.set(ws.id,ws);
-        if(room.source)send(room.source,{type:"listener-joined",id:ws.id});
+        if(room.source&&room.source.audioTransport==="webrtc")send(room.source,{type:"listener-joined",id:ws.id});
       }
-      return send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source});
+      return send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,sourceTransport:room.source?.audioTransport||null});
+    }
+    // Native Android TV/Google TV: explicit mic capture, 16 kHz mono, 16-bit PCM.
+    // Limit frames and listener backpressure to avoid turning this into a general file relay.
+    if(m.type==="audio-frame"&&ws.role==="source"&&ws.room&&ws.audioTransport==="pcm16"){
+      const room=rooms.get(ws.room);
+      if(!room||room.source!==ws||typeof m.pcm!=="string"||!/^[A-Za-z0-9+/]{852}==$/.test(m.pcm))return;
+      const now=Date.now();
+      if(now-ws.frameWindowStart>=1000){ws.frameWindowStart=now;ws.frameCount=0;}
+      if(++ws.frameCount>65)return;
+      for(const listener of room.listeners.values()){
+        if(listener.bufferedAmount<200000)send(listener,{type:"audio-frame",pcm:m.pcm});
+      }
+      return;
     }
     if(m.type==="signal"&&ws.room&&typeof m.to==="string"&&m.data&&typeof m.data==="object"){
       const target=peers.get(m.to),room=rooms.get(ws.room);
