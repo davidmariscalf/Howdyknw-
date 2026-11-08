@@ -61,6 +61,7 @@ public final class MainActivity extends Activity {
     private TextView statusView;
     private TextView micView;
     private TextView levelView;
+    private TextView viewerView;
     private TextView dictationStatus;
     private EditText dictationInput;
     private CheckBox dictationConsent;
@@ -138,6 +139,8 @@ public final class MainActivity extends Activity {
         root.addView(micView);
         levelView = label("Nivel de entrada: —", 14, 0xFF93B0C2);
         root.addView(levelView);
+        viewerView = label("Receptores conectados a la sala: 0", 16, 0xFFB6E9D9);
+        root.addView(viewerView);
         root.addView(label("No hay grabación local ni ejecución en segundo plano. El audio del mando o del asistente puede estar restringido por el fabricante; la app no elude esos límites.", 14, 0xFF93B0C2));
 
         TextView keyboardHeader = label("ALTERNATIVA: TECLADO Y DICTADO DEL SISTEMA", 23, 0xFF86E8D1);
@@ -269,6 +272,13 @@ public final class MainActivity extends Activity {
                     if ("joined".equals(type)) runOnUiThread(() -> {
                         if (socket == ws) startCapture();
                     });
+                    else if ("listener-count".equals(type)) {
+                        int count = Math.max(0, Math.min(4, msg.optInt("count", 0)));
+                        runOnUiThread(() -> {
+                            if (socket == ws)
+                                viewerView.setText("Receptores conectados a la sala: " + count);
+                        });
+                    }
                     else if ("error".equals(type)) runOnUiThread(() -> stopStreaming(
                             "Servidor: " + msg.optString("message", "Error")));
                 } catch (Exception e) {
@@ -555,6 +565,7 @@ public final class MainActivity extends Activity {
         startButton.setEnabled(true);
         stopButton.setEnabled(false);
         levelView.setText("Nivel de entrada: —");
+        viewerView.setText("Receptores conectados a la sala: 0");
         setStatus(message, false);
     }
 
