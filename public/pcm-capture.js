@@ -30,11 +30,14 @@
    }
  }
  class Capture{
-   constructor(stream,onFrame){this.stream=stream;this.onFrame=onFrame;this.context=null;this.processor=null;this.source=null;this.mute=null;}
+   constructor(stream,onFrame,context=null){
+     this.stream=stream;this.onFrame=onFrame;this.context=context;
+     this.processor=null;this.source=null;this.mute=null;
+   }
    async start(){
      const Ctx=window.AudioContext||window.webkitAudioContext;
      if(!Ctx)throw Error("Web Audio no disponible");
-     const context=new Ctx();
+     const context=this.context||new Ctx();
      try{
        if(typeof context.createScriptProcessor!=="function")
          throw Error("El navegador no permite la captura PCM para retransmisión");
