@@ -95,7 +95,7 @@ wss.on("connection",ws=>{
     // Limit frames and listener backpressure to avoid turning this into a general file relay.
     if(m.type==="audio-frame"&&ws.role==="source"&&ws.room&&ws.audioTransport==="pcm16"){
       const room=rooms.get(ws.room);
-      if(!room||room.source!==ws||typeof m.pcm!=="string"||!/^[A-Za-z0-9+/]{852}==$/.test(m.pcm))return;
+      if(!room||room.source!==ws||typeof m.pcm!=="string"||!/^[A-Za-z0-9+/]{854}==$/.test(m.pcm))return;
       const now=Date.now();
       if(now-ws.frameWindowStart>=1000){ws.frameWindowStart=now;ws.frameCount=0;}
       if(++ws.frameCount>65)return;
