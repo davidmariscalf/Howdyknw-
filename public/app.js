@@ -221,7 +221,7 @@ $("startSource").addEventListener("click",async()=>{
         if(viaRelay){
           try{
             pcmSource=new HowdyPcmCapture.Capture(session.stream,bytes=>{
-              if(relayListeners>0&&ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<128000){
+              if(HowdyPcmCapture.canRelay(relayListeners,ws.readyState===WebSocket.OPEN,ws.bufferedAmount)){
                 ws.send(JSON.stringify({type:"audio-frame",pcm:HowdyPcmCapture.toBase64(bytes)}));
               }
             },session.relayContext);
