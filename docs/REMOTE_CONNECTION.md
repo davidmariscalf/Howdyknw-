@@ -22,7 +22,7 @@ En la carpeta del proyecto ejecuta:
 
 ~~~sh
 npm install
-npm start
+npm run remote
 ~~~
 
 En un **segundo terminal del mismo ordenador**:
@@ -31,7 +31,7 @@ En un **segundo terminal del mismo ordenador**:
 tailscale funnel 3000
 ~~~
 
-La primera vez Tailscale puede pedirte habilitar Funnel y HTTPS. Recibirás una URL HTTPS real con dominio `ts.net`. **No utilices un ejemplo inventado como dirección real.** El servicio queda público, así que mantén el enlace privado y genera un código de sala aleatorio. Para detener el acceso público, utiliza `tailscale funnel 3000 off` o `tailscale funnel reset`.
+La primera vez Tailscale puede pedirte habilitar Funnel y HTTPS. Recibirás una URL HTTPS real con dominio `ts.net`. **No utilices un ejemplo inventado como dirección real.** El servicio queda público y el modo remoto mantiene deshabilitada la API de informes locales, así que mantén el enlace privado y genera un código de sala aleatorio. Para detener el acceso público, utiliza `tailscale funnel 3000 off` o `tailscale funnel reset`.
 
 Fuentes oficiales: https://tailscale.com/docs/reference/tailscale-cli/funnel y https://tailscale.com/docs/features/tailscale-funnel
 
