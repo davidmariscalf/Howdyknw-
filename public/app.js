@@ -2,6 +2,14 @@
 const $=id=>document.getElementById(id);
 const ROOM_PATTERN=/^[A-Z0-9]{8,16}$/;
 const session={source:null,listener:null,stream:null,peers:new Map(),incoming:null,ice:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}};
+let pcmPlayer=null;
+let nativeAudioMode=false;
+function setNativeMode(active){
+  nativeAudioMode=active;
+  $("pcmNotice").hidden=!active;
+  $("audioPlayer").hidden=active;
+  if(active)setStatus("listener","Audio nativo de TV disponible. Esperando tramas PCM…","live");
+}
 function browserRequirements(){
   const secure=window.isSecureContext===true;
   const mic=Boolean(navigator.mediaDevices?.getUserMedia);
@@ -74,6 +82,8 @@ function closeSource(){
   $("micNotice").hidden=true;setStatus("source","Micrófono apagado.");
 }
 function closeListener(){
+  pcmPlayer?.stop();pcmPlayer=null;
+  setNativeMode(false);
   session.incoming?.pc.close();session.incoming=null;
   $("audioPlayer").srcObject=null;
   const ws=session.listener;session.listener=null;if(ws)ws.close();
@@ -135,6 +145,11 @@ $("startListener").addEventListener("click",()=>{
   const room=$("listenerRoom").value.trim().toUpperCase();
   if(!ROOM_PATTERN.test(room))return setStatus("listener","Introduce el código de sala correcto.","error");
   $("startListener").disabled=true;$("stopListener").disabled=false;
+  setNativeMode(false);
+  try{
+    pcmPlayer=new HowdyPcm.Player();
+    void pcmPlayer.enable().catch(e=>setStatus("listener","Web Audio no disponible: "+e.message,"error"));
+  }catch(e){setStatus("listener","El navegador no admite PCM: "+e.message,"error");}
   const ws=wsOpen();session.listener=ws;
   setStatus("listener","Conectando a la sala...");
   ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"listener",room}));
@@ -142,8 +157,20 @@ $("startListener").addEventListener("click",()=>{
     try{
       const msg=JSON.parse(event.data);
       if(msg.type==="error"){closeListener();return setStatus("listener",msg.message,"error");}
-      if(msg.type==="joined")setStatus("listener",msg.sourceOnline?"Conectado. Esperando sonido...":"Sala abierta; esperando el micrófono.");
+      if(msg.type==="joined"){
+        setNativeMode(msg.sourceTransport==="pcm16");
+        if(!nativeAudioMode)setStatus("listener",msg.sourceOnline?"Conectado. Esperando sonido...":"Sala abierta; esperando el micrófono.");
+      }
+      if(msg.type==="source-mode")setNativeMode(msg.transport==="pcm16");
+      if(msg.type==="audio-frame"&&nativeAudioMode){
+        if(pcmPlayer?.play(msg.pcm)){
+          if(pcmPlayer.frames===1)setStatus("listener","Escuchando el micrófono de la TV en directo (PCM).","live");
+        }else if(pcmPlayer?.context?.state==="suspended"){
+          setStatus("listener","El navegador ha bloqueado el sonido: vuelve a pulsar Escuchar ahora.","error");
+        }
+      }
       if(msg.type==="source-offline"){
+        setNativeMode(false);
         session.incoming?.pc.close();session.incoming=null;$("audioPlayer").srcObject=null;
         setStatus("listener","El dispositivo que transmite se ha desconectado.");
       }
