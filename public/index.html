@@ -29,6 +29,15 @@
       <button class="tab selected" data-tab="audio" role="tab" aria-controls="pane-audio" aria-selected="true"><span class="tab-icon">◉</span> Audio en directo</button>
       <button class="tab" data-tab="network" role="tab" aria-controls="pane-network" aria-selected="false"><span class="tab-icon">⌁</span> Conexiones de TV</button>
     </div>
+    <section class="remote-setup" aria-label="Conexión a distancia">
+      <div class="remote-title"><span class="remote-icon">◎</span><div><strong>Conectar desde otra ciudad</strong><p id="remoteAccessStatus">Comprobando si esta dirección funciona desde fuera de casa…</p></div></div>
+      <details><summary>Cómo conectar una TV alejada</summary>
+        <p>Instala y abre Howdyknw en la televisión que está lejos. Usa la misma dirección segura de este servidor en la TV y en el móvil receptor. No hace falta compartir Wi-Fi ni abrir puertos en el router si alojas el servidor en Internet.</p>
+        <div class="remote-address"><code id="remoteServerAddress">—</code><button id="copyRemoteAddress" class="button button-ghost" type="button">Copiar dirección para TV</button></div>
+        <p>En la app Android TV pega la dirección <strong>WSS</strong> y el mismo código de sala que en el receptor. Para Tizen usa la dirección HTTPS. La TV debe permitir y activar el micrófono; cerrar la app corta el audio. Si no está disponible, solo se puede compartir texto por el teclado del sistema.</p>
+        <p class="footnote">Si esta web muestra localhost o una dirección local, todavía necesitas publicar el servidor mediante HTTPS. No expongas un servicio sin contraseña ni reutilices códigos de sala compartidos.</p>
+      </details>
+    </section>
     <section id="pane-audio" class="pane" role="tabpanel">
       <div class="section-head"><div><div class="overline">01 / AUDIO REMOTO</div><h2>Un dispositivo transmite. Otro escucha.</h2></div><span class="quiet-label">SIN GRABACIÓN</span></div>
       <div class="device-grid">
