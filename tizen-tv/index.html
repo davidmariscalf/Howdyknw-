@@ -27,6 +27,17 @@
   </div>
   <p class="status" id="status" role="status">INACTIVO · MICRÓFONO APAGADO</p>
   <p id="support" class="support">Analizando capacidades…</p>
+  <section class="dictation">
+    <h2>ALTERNATIVA · TECLADO DEL SISTEMA</h2>
+    <p>Si la TV no permite acceder al audio, enfoca el campo y utiliza el dictado del teclado cuando esté disponible. Esta función comparte únicamente texto después de confirmarlo, nunca audio.</p>
+    <label for="dictationText">Texto de prueba</label>
+    <textarea id="dictationText" rows="3" maxlength="1000" placeholder="Escribe o dicta aquí…"></textarea>
+    <div class="buttons">
+      <button id="focusText" type="button">ABRIR TECLADO</button>
+      <button id="shareText" type="button">COMPARTIR TEXTO</button>
+    </div>
+    <p id="textStatus" class="support" role="status">Texto local; no se ha compartido nada.</p>
+  </section>
 </section>
 <footer>Al cerrar esta app, el micrófono se apaga. No graba ni envía audio sin una acción explícita.</footer>
 </main>
