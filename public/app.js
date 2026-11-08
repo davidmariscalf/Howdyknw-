@@ -137,10 +137,10 @@ $("generateRoom").addEventListener("click",()=>{
   const code=makeCode();$("sourceRoom").value=code;$("listenerRoom").value=code;
 });
 $("sourceRoom").value=makeCode();
-$("listenerRoom").value=new URLSearchParams(location.search).get("room")?.trim().toUpperCase()||$("sourceRoom").value;
+$("listenerRoom").value=(new URLSearchParams(location.hash.slice(1)).get("room")||new URLSearchParams(location.search).get("room"))?.trim().toUpperCase()||$("sourceRoom").value;
 $("sourceRoom").addEventListener("input",()=>{if(!session.listener)$("listenerRoom").value=$("sourceRoom").value.toUpperCase();});
 $("copyRoom").addEventListener("click",async()=>{
-  const url=new URL(location.href);url.search="";url.searchParams.set("room",$("sourceRoom").value.trim().toUpperCase());
+  const url=new URL(location.href);url.search="";url.hash="room="+encodeURIComponent($("sourceRoom").value.trim().toUpperCase());
   try{await navigator.clipboard.writeText(url.href);$("copyRoom").textContent="¡Enlace copiado! ✓";}
   catch{$("copyRoom").textContent="Enlace: "+url.href;}
 });
