@@ -211,6 +211,11 @@ function renderAudit() {
 }
 function acceptReport(raw,slot="primary",kind="import"){
   const result=HowdyReport.normalizeReport(raw);
+  if(kind==="import"&&audit.demo){
+    // Never mix synthetic demo data into a comparison with a real capture.
+    if(slot==="primary")audit.secondary=null;
+    else audit.primary=null;
+  }
   audit[slot]=result;
   if(kind==="import") {audit.imported=true;audit.demo=false;}
   renderAudit();
@@ -266,7 +271,7 @@ $("downloadCsv").addEventListener("click",()=>{
   const blob=new Blob([contents],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob);
   const link=document.createElement("a");
-  link.href=url;link.download="howdyknw-destinos.csv";link.click();
+  link.href=url;link.download=audit.demo?"howdyknw-EJEMPLO-FICTICIO.csv":"howdyknw-destinos.csv";link.click();
   setTimeout(()=>URL.revokeObjectURL(url),2000);
 });
 function updateCaptureCommand() {
