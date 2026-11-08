@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -52,6 +53,7 @@ public final class MainActivity extends Activity {
     private static final int SAMPLE_RATE = 16000;
     private static final int FRAME_BYTES = 640; // 20 ms mono PCM16 at 16kHz
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicInteger activeListeners = new AtomicInteger(0);
     private OkHttpClient client;
     private WebSocket socket;
     private AudioRecord recorder;
@@ -274,9 +276,17 @@ public final class MainActivity extends Activity {
                     });
                     else if ("listener-count".equals(type)) {
                         int count = Math.max(0, Math.min(4, msg.optInt("count", 0)));
+                        activeListeners.set(count);
                         runOnUiThread(() -> {
-                            if (socket == ws)
+                            if (socket == ws) {
                                 viewerView.setText("Receptores conectados a la sala: " + count);
+                                if (running.get()) {
+                                    setStatus(count > 0
+                                            ? "● TRANSMITIENDO · " + count + " RECEPTOR(ES)"
+                                            : "● MICRÓFONO ACTIVO · ESPERANDO RECEPTOR · NO SE ENVÍA AUDIO",
+                                            true);
+                                }
+                            }
                         });
                     }
                     else if ("error".equals(type)) runOnUiThread(() -> stopStreaming(
@@ -324,7 +334,9 @@ public final class MainActivity extends Activity {
             stopStreaming("No se pudo activar la entrada de audio: " + ex.getMessage()); return;
         }
         running.set(true);
-        setStatus("● TRANSMITIENDO · MICRÓFONO ACTIVO · CÓDIGO " + roomCode, true);
+        setStatus(activeListeners.get() > 0
+                ? "● TRANSMITIENDO · MICRÓFONO ACTIVO · CÓDIGO " + roomCode
+                : "● MICRÓFONO ACTIVO · ESPERANDO RECEPTOR · NO SE ENVÍA AUDIO", true);
         AudioDeviceInfo route = recorder.getRoutedDevice();
         if (route != null) micView.setText("Entrada realmente utilizada: "
                 + route.getProductName() + " (tipo " + route.getType() + ")");
@@ -346,14 +358,8 @@ public final class MainActivity extends Activity {
             position += n;
             if (position < FRAME_BYTES) continue;
             position = 0;
-            if (ws.queueSize() > 256_000) continue; // Drop, do not accumulate raw audio.
-            String encoded = Base64.encodeToString(frame, Base64.NO_WRAP);
-            JSONObject packet = new JSONObject();
-            try {
-                packet.put("type", "audio-frame");
-                packet.put("pcm", encoded);
-                if (!ws.send(packet.toString())) break;
-            } catch (Exception ex) { break; }
+            // Update local meter even when no listener is connected, but do NOT
+            // send microphone samples over the network to an empty room.
             if (System.currentTimeMillis() - lastMeter >= 600) {
                 long sum = 0;
                 for (int i = 0; i < FRAME_BYTES; i += 2) {
@@ -368,6 +374,15 @@ public final class MainActivity extends Activity {
                 });
                 lastMeter = System.currentTimeMillis();
             }
+            if (activeListeners.get() <= 0) continue;
+            if (ws.queueSize() > 256_000) continue; // Drop frames under backpressure.
+            String encoded = Base64.encodeToString(frame, Base64.NO_WRAP);
+            JSONObject packet = new JSONObject();
+            try {
+                packet.put("type", "audio-frame");
+                packet.put("pcm", encoded);
+                if (!ws.send(packet.toString())) break;
+            } catch (Exception ex) { break; }
         }
         if (running.get()) runOnUiThread(() ->
                 stopStreaming("El micrófono dejó de entregar audio o se cortó la conexión."));
@@ -553,6 +568,7 @@ public final class MainActivity extends Activity {
     private void stopStreaming(String message) {
         pendingStart = false;
         running.set(false);
+        activeListeners.set(0);
         WebSocket oldSocket = socket;
         socket = null;
         if (oldSocket != null) oldSocket.close(1000, "User stopped mic");
