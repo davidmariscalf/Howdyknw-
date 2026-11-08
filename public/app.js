@@ -53,7 +53,7 @@ function showTab(name){
   for(const [key,pane] of Object.entries(panes))pane.hidden=key!==name;
 }
 tabs.forEach(t=>t.addEventListener("click",()=>showTab(t.dataset.tab)));
-function makeCode(){const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";const bits=crypto.getRandomValues(new Uint8Array(10));return [...bits].map(x=>alphabet[x%alphabet.length]).join("");}
+function makeCode(){const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";const bits=crypto.getRandomValues(new Uint8Array(12));return [...bits].map(x=>alphabet[x%alphabet.length]).join("");}
 function setStatus(kind,message,state=""){
   const node=$(kind+"Status");node.className="status"+(state?" "+state:"");
   $(kind+"Message").textContent=message;
