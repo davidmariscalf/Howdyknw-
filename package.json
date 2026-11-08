@@ -5,7 +5,7 @@
   "description": "TV audio broadcaster for accessible microphones on Android TV and browsers, plus privacy traffic analyzer",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/report-utils.js && node --check public/pcm-playback.js && node --check public/experiments.js && node --check tizen-tv/app.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/report-utils.js && node --check public/pcm-playback.js && node --check public/pcm-capture.js && node --check public/experiments.js && node --check tizen-tv/app.js",
     "test": "node --test tests/*.test.js"
   },
   "engines": {
