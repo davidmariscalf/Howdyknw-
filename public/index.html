@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/report-utils.js" defer></script>
   <script src="/app.js" defer></script>
+  <script src="/experiments.js" defer></script>
 </head>
 <body>
   <div class="ambient ambient-a" aria-hidden="true"></div>
@@ -75,6 +76,19 @@
       <div class="instructions"><div class="overline">EMPEZAR A CAPTURAR</div><h3>Desde un ordenador con TShark</h3><p>El equipo de captura debe poder ver el tráfico de la TV: por ejemplo, en el router, un puerto espejo o un punto de acceso propio. Estar en el mismo Wi-Fi no garantiza verlo.</p>
       <div class="capture-fields"><label>IP de tu TV<input id="tvIp" inputmode="decimal" value="192.168.1.50" aria-label="Dirección IP de la TV"></label><label>Interfaz de TShark<input id="captureInterface" value="1" aria-label="Interfaz de captura"></label><label>Segundos<select id="captureSeconds" aria-label="Duración de captura"><option value="60">60</option><option value="180" selected>180</option><option value="600">600</option></select></label></div><div class="command"><code id="captureCommand">python tv_monitor.py --interface 1 --tv-ip 192.168.1.50 --duration 180</code><button id="copyCommand" aria-label="Copiar comando">Copiar</button></div><p id="captureWarning" class="footnote" role="status">El equipo de captura debe estar en la ruta del tráfico.</p>
       <p class="footnote">Sustituye la interfaz y la IP por las tuyas. También puedes analizar una captura existente con <code>--pcap archivo.pcapng</code>. El informe aparece aquí si se ejecuta junto al servidor, o puedes importarlo como JSON.</p></div>
+      <details class="experiment-card">
+        <summary>03 / Cuaderno de pruebas del micrófono de la TV <span>Diagnóstico, no escucha interna</span></summary>
+        <p>Registra el estado de la televisión y tus observaciones para que un experimento se pueda repetir. Esta sección no accede al micrófono interno ni certifica grabaciones.</p>
+        <div class="experiment-fields">
+          <label>Modelo exacto de TV<input id="tvModel" placeholder="Ejemplo: OLED55…"></label>
+          <label>Firmware / webOS<input id="tvFirmware" placeholder="Versión si se conoce"></label>
+          <label>Estado de la TV<select id="tvPowerState"><option value="encendida">Encendida</option><option value="standby">Standby (conectada)</option><option value="desenchufada">Sin alimentación</option></select></label>
+          <label>Función de voz<select id="tvVoiceMode"><option value="desconocida">No comprobada</option><option value="desactivada">Desactivada</option><option value="activada-sin-comando">Habilitada sin activación</option><option value="activada-por-comando">Activada explícitamente</option></select></label>
+          <label class="wide">Observación manual<textarea id="tvObservation" rows="3" placeholder="Qué hiciste, qué observaste y dónde está la evidencia (sin conversaciones privadas)"></textarea></label>
+        </div>
+        <button class="button button-primary experiment-button" id="exportExperiment" type="button">↓ Exportar acta JSON</button>
+        <p class="footnote" id="experimentStatus" role="status">Nivel de evidencia: observación manual, sin acceso al audio interno de la televisión.</p>
+      </details>
       <div class="callout"><div class="callout-icon">!</div><div><strong>Qué se puede y no se puede saber</strong><p>Se observan direcciones IP, dominios DNS/SNI cuando aparecen, puertos y volúmenes aproximados. El contenido HTTPS cifrado, consultas DNS cifradas y tráfico que no pasa por tu punto de captura no son visibles.</p></div></div>
     </section>
     <footer>HOWDYKNW <span>·</span> Prototipo para equipos y redes propios <span>·</span> Sin anuncios</footer>
