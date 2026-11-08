@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "source": "tshark_capture",
+  "tv_ip": "192.168.1.50",
+  "label": "Ejemplo sintético — reposo",
+  "first_outbound_utc": "2026-11-08T18:10:00Z",
+  "last_outbound_utc": "2026-11-08T18:13:00Z",
+  "outbound_packets": 45,
+  "inbound_packets": 48,
+  "outbound_frame_bytes": 23000,
+  "dns_queries": [
+    "heartbeat.example"
+  ],
+  "destinations": [
+    {
+      "ip": "203.0.113.21",
+      "port": "443",
+      "scope": "public",
+      "packets": 30,
+      "bytes": 15000,
+      "tls_sni": [
+        "metrics.example"
+      ]
+    },
+    {
+      "ip": "203.0.113.87",
+      "port": "443",
+      "scope": "public",
+      "packets": 15,
+      "bytes": 8000,
+      "tls_sni": [
+        "heartbeat.example"
+      ]
+    }
+  ],
+  "limits": [
+    "EJEMPLO SINTÉTICO: IP y dominios ficticios.",
+    "No prueba grabación ni envío de audio."
+  ]
+}
