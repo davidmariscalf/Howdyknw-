@@ -20,3 +20,11 @@ Documentación:
 - https://developer.samsung.com/smarttv/develop/api-references/tizen-web-device-api-references/systeminfo-api/getting-device-capabilities-using-systeminfo-api.html
 - https://developer.samsung.com/smarttv/develop/api-references/samsung-product-api-references/microphone-api.html
 - https://github.com/Samsung/tizen-docs/blob/master/docs/application/web/reference/security-privileges.md
+
+## Alternativa: teclado de Tizen
+
+Cuando getUserMedia no permita el micrófono, **ABRIR TECLADO** enfoca un campo de texto ordinario. Si el teclado Samsung instalado tiene un botón de dictado, úsalo con una frase de prueba y comprueba que el texto aparece. No todas las versiones de Tizen ofrecen dictado.
+
+**COMPARTIR TEXTO** requiere consentimiento y una sala configurada. Solo envía las palabras visibles al receptor Howdyknw; no descarga ni transmite el audio interno utilizado por el reconocimiento de voz. El receptor muestra «No es una grabación de audio».
+
+Ninguna aplicación obtiene más permisos al declararse falsamente teclado. El acceso a audio depende de las APIs y del firmware. La app Tizen todavía necesita empaquetado, firma y validación sobre una Samsung física.
