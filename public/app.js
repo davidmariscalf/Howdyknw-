@@ -88,6 +88,7 @@ configureIce();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
+  if(!$("consentMic").checked)return setStatus("source","Confirma primero que la transmisión se realiza con conocimiento de los participantes.","error");
   if(!navigator.mediaDevices?.getUserMedia)return setStatus("source","El micrófono exige HTTPS o localhost.","error");
   $("startSource").disabled=true;setStatus("source","Solicitando permiso del micrófono...");
   try{session.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true},video:false});}
