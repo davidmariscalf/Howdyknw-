@@ -18,6 +18,7 @@ const requestHandler = async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ws: wss:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
   if (!["GET", "HEAD"].includes(req.method)) {res.writeHead(405);return res.end();}
   let pathname;
   try {pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);} catch {res.writeHead(400);return res.end();}
@@ -51,9 +52,36 @@ const server = useTls ? https.createServer({
   key: fs.readFileSync(process.env.TLS_KEY_FILE)
 }, requestHandler) : http.createServer(requestHandler);
 function json(res,status,obj){res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});res.end(JSON.stringify(obj));}
-const wss = new WebSocketServer({server,maxPayload:180000});
+const wss = new WebSocketServer({server,maxPayload:180000,verifyClient:({req},done)=>{
+  // Browsers must use the app's host, not a foreign webpage.
+  // Android clients omit Origin; some TV runtimes use non-HTTP origins.
+  const origin=req.headers.origin;
+  if(!origin || origin==="null" || !/^https?:\/\//i.test(origin))return done(true);
+  let allowed=false;
+  try{
+    const host=new URL(origin).host.toLowerCase();
+    const expected=(req.headers.host||"").toLowerCase();
+    const extras=(process.env.ALLOWED_WS_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean);
+    allowed=host===expected || extras.includes(new URL(origin).origin);
+  }catch{}
+  return done(allowed,403,allowed?undefined:"Origen web no permitido");
+}});
+function heartbeatSweep(){
+  for(const client of wss.clients){
+    if(client.readyState!==WebSocket.OPEN)continue;
+    if(client.awaitingPong){client.terminate();continue;}
+    client.awaitingPong=true;
+    try{client.ping();}catch{client.terminate();}
+  }
+}
+const heartbeatTimer=setInterval(heartbeatSweep,25000);
+heartbeatTimer.unref();
+wss.on("close",()=>clearInterval(heartbeatTimer));
 function send(ws,msg){if(ws && ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg));}
 function getRoom(code){if(!rooms.has(code))rooms.set(code,{source:null,listeners:new Map()});return rooms.get(code);}
+function notifyListenerCount(room){
+  send(room.source,{type:"listener-count",count:room.listeners.size});
+}
 function leave(ws){
   if(!ws.room)return;
   const room=rooms.get(ws.room);
@@ -65,6 +93,7 @@ function leave(ws){
     if(ws.role==="listener"){
       room.listeners.delete(ws.id);
       send(room.source,{type:"listener-left",id:ws.id});
+      notifyListenerCount(room);
     }
     if(!room.source && room.listeners.size===0)rooms.delete(ws.room);
   }
@@ -73,6 +102,8 @@ function leave(ws){
 wss.on("connection",ws=>{
   if (wss.clients.size > 80) {ws.close(1013,"Servidor lleno");return;}
   ws.id=crypto.randomUUID();
+  ws.awaitingPong=false;
+  ws.on("pong",()=>{ws.awaitingPong=false;});
   ws.messageWindow=Date.now();ws.messageCount=0;
   ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;ws.transcriptCount=0;
   ws.on("message",raw=>{
@@ -94,15 +125,17 @@ wss.on("connection",ws=>{
       peers.set(ws.id,ws);
       if(role==="source"){
         room.source=ws;
+        notifyListenerCount(room);
         for(const listener of room.listeners.values()){
           send(listener,{type:"source-mode",transport:ws.audioTransport});
           if(ws.audioTransport==="webrtc")send(ws,{type:"listener-joined",id:listener.id});
         }
       }else{
         room.listeners.set(ws.id,ws);
+        notifyListenerCount(room);
         if(room.source&&room.source.audioTransport==="webrtc")send(room.source,{type:"listener-joined",id:ws.id});
       }
-      return send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,sourceTransport:room.source?.audioTransport||null});
+      return send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,listenerCount:room.listeners.size,sourceTransport:room.source?.audioTransport||null});
     }
     // System TV keyboard / recognizer returns TEXT only. Never label it as microphone audio.
     // The user sends each transcript explicitly; no server-side saving or automatic dictation.
@@ -151,4 +184,4 @@ if(require.main===module){
   const host=process.env.HOST||(REMOTE_MODE?"0.0.0.0":"127.0.0.1");
   server.listen(port,host,()=>console.log("Howdyknw funcionando en "+(useTls?"https":"http")+"://"+(host==="0.0.0.0"?"localhost":host)+":"+port+(host==="0.0.0.0"?" (expuesto en todas las interfaces)":"")));
 }
-module.exports={server,wss,rooms};
+module.exports={server,wss,rooms,heartbeatSweep};
