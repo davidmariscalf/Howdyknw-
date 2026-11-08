@@ -55,6 +55,27 @@ $("copyRemoteAddress").addEventListener("click",async()=>{
   }
 });
 updateRemoteAccessInfo();
+$("probeConnection").addEventListener("click",async()=>{
+  const button=$("probeConnection");
+  button.disabled=true;
+  const status=$("probeStatus");
+  status.textContent="Probando HTTP del servidor…";
+  try{
+    const res=await fetch("/api/health",{cache:"no-store"});
+    if(!res.ok)throw Error("HTTP "+res.status);
+    const payload=await res.json();
+    if(payload.status!=="ok")throw Error("Respuesta de salud inesperada");
+    status.textContent="HTTP correcto. Probando la conexión WebSocket…";
+    await new Promise((resolve,reject)=>{
+      const ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host);
+      const timeout=setTimeout(()=>{ws.close();reject(Error("Tiempo de conexión agotado"));},6000);
+      ws.onopen=()=>{clearTimeout(timeout);ws.close();resolve();};
+      ws.onerror=()=>{clearTimeout(timeout);ws.close();reject(Error("WebSocket bloqueado por servidor, red o proxy"));};
+    });
+    status.textContent="Servidor accesible por HTTP y WebSocket desde ESTE dispositivo. Audio y acceso externo no comprobados.";
+  }catch(err){status.textContent="Fallo de conexión: "+err.message;}
+  finally{button.disabled=false;}
+});
 const tabs=document.querySelectorAll(".tab");
 const panes={audio:$("pane-audio"),network:$("pane-network")};
 function showTab(name){
@@ -116,7 +137,7 @@ function closeSource(){
   session.peers.clear();
   session.stream?.getTracks().forEach(t=>t.stop());session.stream=null;
   const ws=session.source;session.source=null;if(ws)ws.close();
-  $("startSource").disabled=false;$("stopSource").disabled=true;$("copyRoom").disabled=true;
+  $("startSource").disabled=false;$("stopSource").disabled=true;
   $("micNotice").hidden=true;$("sourceListeners").textContent="Receptores conectados: 0";
   setStatus("source","Micrófono apagado.");
 }
@@ -176,7 +197,7 @@ $("startSource").addEventListener("click",async()=>{
   for(const track of session.stream.getAudioTracks()){track.addEventListener("ended",()=>{if(session.stream){closeSource();setStatus("source","El sistema detuvo el micrófono.","error");}},{once:true});}
   $("micNotice").hidden=false;$("stopSource").disabled=false;
   $("relayMode").disabled=true;
-  $("copyRoom").disabled=false;$("sourceRoom").value=room;
+  $("sourceRoom").value=room;
   const ws=wsOpen();session.source=ws;
   setStatus("source","Micrófono encendido. Conectando...","live");
   ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",room,transport:viaRelay?"pcm16":"webrtc"}));
