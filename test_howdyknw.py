@@ -1,7 +1,12 @@
 """Unit tests with synthetic, non-sensitive traffic metadata."""
 import unittest
+import csv
+import io
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from howdyknw import analyze, compare, valid_ip
+from howdyknw import FIELDS, analyze, compare, read_capture, valid_ip
 
 
 def packet(src="192.168.1.30", dst="1.2.3.4", length="100",
@@ -55,6 +60,33 @@ class HowdyknwTests(unittest.TestCase):
         b = analyze([], "192.168.1.2")
         with self.assertRaises(ValueError):
             compare(a, b)
+
+    def test_analyzer_accepts_streaming_generator_and_nan_timestamp(self):
+        rows = (packet(time="nan" if i == 2 else str(1000 + i))
+                for i in range(100))
+        result = analyze(rows, "192.168.1.30")
+        self.assertEqual(result["outbound_packets"], 100)
+        self.assertEqual(result["first_outbound_utc"], "1970-01-01T00:16:40+00:00")
+        self.assertEqual(result["last_outbound_utc"], "1970-01-01T00:18:19+00:00")
+
+    def test_pcap_reader_yields_csv_rows_without_buffering_all_packets(self):
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([str(i) for i in range(len(FIELDS))])
+        fake = MagicMock()
+        fake.stdout = io.StringIO(output.getvalue())
+        fake.wait.return_value = 0
+        fake.poll.return_value = 0
+        with tempfile.TemporaryDirectory() as directory:
+            pcap = Path(directory) / "sample.pcapng"
+            pcap.write_bytes(b"not a real pcap, mocked TShark output")
+            with patch("howdyknw.subprocess.Popen", return_value=fake):
+                stream = read_capture(pcap, "tshark")
+                row = next(stream)
+                self.assertEqual(row[FIELDS[0]], "0")
+                self.assertEqual(row[FIELDS[-1]], str(len(FIELDS) - 1))
+                with self.assertRaises(StopIteration):
+                    next(stream)
 
     def test_ip_validation(self):
         self.assertEqual(valid_ip("2001:db8::1"), "2001:db8::1")
