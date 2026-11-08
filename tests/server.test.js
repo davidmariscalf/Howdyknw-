@@ -3,7 +3,7 @@ const {test,before,after}=require("node:test");
 const assert=require("node:assert/strict");
 const {once}=require("node:events");
 const WebSocket=require("ws");
-const {server,wss}=require("../server");
+const {server,wss,rooms,heartbeatSweep}=require("../server");
 
 let origin,base;
 before(async()=>{
@@ -135,6 +135,45 @@ test("servidor público limita receptores y rechaza mensajes JSON peligrosos",as
     for(const ws of listeners)ws.close();
   }
 });
+test("el emisor recibe contador de oyentes y se libera una sesión sin latidos",async()=>{
+  const room="HEARTBEAT125";
+  const source=await client();
+  const listener=await client();
+  try{
+    const ready=message(source,m=>m.type==="joined");
+    source.send(JSON.stringify({type:"join",role:"source",room}));
+    const joined=await ready;
+    assert.ok(Array.isArray(joined.iceServers));
+    const count=message(source,m=>m.type==="listener-count"&&m.count===1);
+    const listenerReady=message(listener,m=>m.type==="joined");
+    listener.send(JSON.stringify({type:"join",role:"listener",room}));
+    assert.equal((await listenerReady).listenerCount,1);
+    assert.equal((await count).count,1);
+    const disconnected=message(listener,m=>m.type==="source-offline");
+    const serverSocket=rooms.get(room).source;
+    serverSocket.awaitingPong=true;
+    heartbeatSweep();
+    await disconnected;
+    assert.equal(rooms.get(room).source,null);
+  }finally{source.terminate();listener.terminate();}
+});
+
+test("bloquea websockets desde páginas externas con origen HTTPS ajeno",async()=>{
+  const foreign=new WebSocket(base,{origin:"https://otra-pagina.example"});
+  const status=await new Promise((resolve,reject)=>{
+    const timeout=setTimeout(()=>reject(Error("Timeout del rechazo WebSocket")),4000);
+    foreign.once("unexpected-response",(_request,response)=>{
+      clearTimeout(timeout);
+      const statusCode=response.statusCode;
+      response.resume();
+      foreign.terminate();
+      resolve(statusCode);
+    });
+    foreign.once("error",error=>{clearTimeout(timeout);reject(error);});
+  });
+  assert.equal(status,403);
+});
+
 test("WebSocket rechaza códigos inválidos y roles falsos",async()=>{
   const ws=await client();
   try{
