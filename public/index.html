@@ -41,6 +41,14 @@
           <div class="actions"><button id="startSource" class="button button-primary">◉ &nbsp; Activar micrófono</button><button id="stopSource" class="button button-ghost" disabled>Detener</button></div>
           <button id="copyRoom" class="link-action" disabled>Copiar enlace para escuchar ↗</button>
           <div id="micNotice" class="notice" hidden>● MICRÓFONO ENCENDIDO · EL AUDIO SE ESTÁ COMPARTIENDO</div>
+          <div class="web-dictation">
+            <h4>Si el micrófono está bloqueado: probar el teclado</h4>
+            <p>En algunas televisiones puedes dictar con el teclado oficial. Aquí solo recibimos texto, no audio.</p>
+            <label for="sourceText">Texto escrito o dictado</label>
+            <textarea id="sourceText" maxlength="1000" rows="3" placeholder="Prueba de texto…"></textarea>
+            <div class="actions"><button id="openSourceKeyboard" class="button button-ghost" type="button">Abrir teclado</button><button id="shareSourceText" class="button button-ghost" type="button">Compartir texto</button></div>
+            <p id="sourceTextStatus" class="footnote" role="status">No se ha compartido texto.</p>
+          </div>
         </article>
         <article class="device-card listener-card">
           <div class="card-heading"><div class="avatar headphones">♫</div><div><div class="step">DISPOSITIVO B</div><h3>Donde quieras escuchar</h3></div></div>
