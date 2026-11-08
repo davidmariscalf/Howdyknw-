@@ -33,5 +33,7 @@ jobs:
           node --check public/experiments.js
           node --check public/pcm-playback.js
           node --check tizen-tv/app.js
+          node --check public/pcm-playback.js
+          node --check tizen-tv/app.js
       - name: Node integration tests
         run: npm test
