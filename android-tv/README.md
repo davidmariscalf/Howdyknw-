@@ -1,6 +1,6 @@
 # Howdyknw Native TV Audio
 
-Aplicación Android TV / Google TV (versión 1.1) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
+Aplicación Android TV / Google TV (versión 1.2) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
 
 No es una solución para capturar el micrófono del mando que solo es accesible por el asistente del fabricante. No tiene servicios de arranque ni grabación en segundo plano; al abandonar la pantalla detiene el audio.
 
@@ -37,7 +37,7 @@ El servidor no conserva grabaciones ni las tramas de audio: retransmite a los oy
 
 Documentación Android: https://developer.android.com/media/platform/mediarecorder
 
-## Alternativa 1.1: teclado y reconocimiento del sistema
+## Alternativa 1.2: teclado y reconocimiento del sistema
 
 Esta opción **no intenta suplantar a Gboard, alterar los permisos de Android ni recuperar audio interno**. Utiliza controles Android reales.
 
@@ -54,7 +54,15 @@ Documentación oficial:
 - https://developer.android.com/training/tv/get-started/onscreen-keyboard
 - https://developer.android.com/reference/android/speech/RecognizerIntent
 
-La compilación Android TV 1.1.0 de prueba está publicada como artefacto de GitHub Actions:
+La compilación Android TV 1.2.0 de prueba está publicada como artefacto de GitHub Actions:
 https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
 
 Las pruebas automáticas verifican la compilación, pero la compatibilidad con cada micrófono necesita una TV real. Samsung/Tizen tiene un módulo de texto separado.
+
+## Cambios de la versión 1.2
+
+- El panel muestra **cuántos receptores hay conectados a la sala**. Este número indica conexiones, no confirma que el usuario haya escuchado correctamente.
+- El medidor local de audio puede seguir funcionando cuando no hay oyentes, pero la app **no envía tramas PCM al servidor con cero receptores**. Con el primer oyente conectado, reanuda el envío mientras la aplicación continúe visible y autorizada.
+- El servidor ahora libera conexiones caídas mediante latidos WebSocket; si el emisor pierde la conexión, detiene el micrófono. No se reinicia en segundo plano.
+
+Las mejoras del servidor y del receptor web se encuentran en el proyecto raíz. Informe de auditoría: [docs/AUDIT_2026-11-09.md](../docs/AUDIT_2026-11-09.md).
