@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id);
 const ROOM_PATTERN=/^[A-Z0-9]{8,16}$/;
 const session={source:null,listener:null,stream:null,peers:new Map(),incoming:null,ice:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}};
 let pcmPlayer=null;
+let pcmSource=null;
 let nativeAudioMode=false;
 function setNativeMode(active){
   nativeAudioMode=active;
@@ -25,7 +26,7 @@ function browserRequirements(){
 }
 function updateRemoteAccessInfo(){
   const hostname=location.hostname;
-  const local=/^(localhost|127\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2\\d|3[01])\\.|\\[?::1\\]?)$/i.test(hostname) ||
+  const local=/^(?:localhost$|127\\.|10\\.|192\\.168\\.|172\\.(?:1[6-9]|2\\d|3[01])\\.|\\[?::1\\]?$)/i.test(hostname) ||
     hostname.endsWith(".local");
   const secure=location.protocol==="https:";
   const publicUrl=secure&&!local;
@@ -96,6 +97,8 @@ async function acceptSignal(holder,data,ws,from){
   }
 }
 function closeSource(){
+  pcmSource?.stop();pcmSource=null;
+  $("relayMode").disabled=false;
   for(const entry of session.peers.values())entry.pc.close();
   session.peers.clear();
   session.stream?.getTracks().forEach(t=>t.stop());session.stream=null;
@@ -133,6 +136,7 @@ configureIce();
 browserRequirements();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
+  const viaRelay=$("relayMode").checked;
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
   if(!$("consentMic").checked)return setStatus("source","Confirma primero que la transmisión se realiza con conocimiento de los participantes.","error");
   if(!navigator.mediaDevices?.getUserMedia)return setStatus("source","El micrófono exige HTTPS o localhost.","error");
@@ -141,16 +145,33 @@ $("startSource").addEventListener("click",async()=>{
   catch(err){$("startSource").disabled=false;return setStatus("source","No se ha activado el micrófono: "+err.message,"error");}
   for(const track of session.stream.getAudioTracks()){track.addEventListener("ended",()=>{if(session.stream){closeSource();setStatus("source","El sistema detuvo el micrófono.","error");}},{once:true});}
   $("micNotice").hidden=false;$("stopSource").disabled=false;
+  $("relayMode").disabled=true;
   $("copyRoom").disabled=false;$("sourceRoom").value=room;
   const ws=wsOpen();session.source=ws;
   setStatus("source","Micrófono encendido. Conectando...","live");
-  ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",room}));
+  ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",room,transport:viaRelay?"pcm16":"webrtc"}));
   ws.onmessage=async event=>{
     try{
       const msg=JSON.parse(event.data);
       if(msg.type==="error"){closeSource();return setStatus("source",msg.message,"error");}
-      if(msg.type==="joined")setStatus("source","Micrófono activo. Sala: "+room,"live");
+      if(msg.type==="joined"){
+        if(viaRelay){
+          try{
+            pcmSource=new HowdyPcmCapture.Capture(session.stream,bytes=>{
+              if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<128000){
+                ws.send(JSON.stringify({type:"audio-frame",pcm:HowdyPcmCapture.toBase64(bytes)}));
+              }
+            });
+            await pcmSource.start();
+            setStatus("source","● Retransmitiendo audio por servidor seguro. Sala: "+room,"live");
+          }catch(err){
+            closeSource();
+            return setStatus("source","El navegador no admite retransmisión PCM: "+err.message,"error");
+          }
+        }else setStatus("source","Micrófono activo. Sala: "+room,"live");
+      }
       if(msg.type==="listener-joined"){
+        if(viaRelay)return;
         if(session.peers.has(msg.id))return;
         const p=peer(ws,msg.id,true);session.peers.set(msg.id,p);
         await p.pc.setLocalDescription(await p.pc.createOffer());
