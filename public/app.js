@@ -2,6 +2,19 @@
 const $=id=>document.getElementById(id);
 const ROOM_PATTERN=/^[A-Z0-9]{8,16}$/;
 const session={source:null,listener:null,stream:null,peers:new Map(),incoming:null,ice:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}};
+function browserRequirements(){
+  const secure=window.isSecureContext===true;
+  const mic=Boolean(navigator.mediaDevices?.getUserMedia);
+  const rtc=typeof window.RTCPeerConnection==="function";
+  const ws=typeof window.WebSocket==="function";
+  const el=$("audioSupport");
+  el.textContent=(!secure?"Sin contexto seguro: usa HTTPS o localhost. ":
+    "Contexto HTTPS/localhost válido. ")+
+    (!mic?"Este navegador no permite activar el micrófono. ":"API de micrófono disponible (requiere permiso). ")+
+    (!rtc?"WebRTC no compatible. ":"WebRTC compatible. ")+
+    (!ws?"WebSocket no disponible. ":"Señalización disponible.");
+  el.classList.toggle("unsupported",!secure||!mic||!rtc||!ws);
+}
 const tabs=document.querySelectorAll(".tab");
 const panes={audio:$("pane-audio"),network:$("pane-network")};
 function showTab(name){
@@ -85,6 +98,7 @@ async function configureIce(){
   try{const r=await fetch("/api/config",{cache:"no-store"});if(r.ok){const data=await r.json();if(Array.isArray(data.iceServers))session.ice={iceServers:data.iceServers};}}catch{}
 }
 configureIce();
+browserRequirements();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
