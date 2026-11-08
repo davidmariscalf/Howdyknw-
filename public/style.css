@@ -64,3 +64,7 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 .experiment-fields .wide{grid-column:1/-1}
 .experiment-button{flex:initial}
 @media(max-width:560px){.experiment-fields{grid-template-columns:1fr}.experiment-card{padding:16px}.experiment-card summary span{margin-left:0}}
+
+.support-check{padding:10px 12px;margin-top:12px!important;border-radius:9px;
+  background:#17302e;border:1px solid #306b60;color:#bceade!important}
+.support-check.unsupported{background:#392a26;border-color:#8d5a49;color:#ffdbc9!important}
