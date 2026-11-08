@@ -74,3 +74,12 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 .transcript-heading span{font-size:11px;color:#8ea8bb}
 .transcript-log{max-height:180px;overflow-y:auto;padding:9px 0;color:#b4cad5;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
 .transcript-log p{border-left:2px solid #70daca;padding:7px 11px;margin:7px 0;background:#18303a;border-radius:0 7px 7px 0;color:#f2ffff}
+
+.web-dictation{border-top:1px solid #2d4b52;padding-top:20px;margin-top:20px}
+.web-dictation h4{font-size:15px;color:#a0f2e2;margin:0}
+.web-dictation p{font-size:12px}
+.web-dictation label{font-size:12px;color:#c2e4e1;display:block;margin:13px 0 7px}
+.web-dictation textarea{width:100%;min-height:85px;resize:vertical;padding:12px 14px;background:#0e1924;color:#f0fffd;border:1px solid #3c5c61;border-radius:10px;font:14px/1.5 system-ui,Arial,sans-serif}
+.web-dictation textarea:focus{outline:2px solid #8ce5d5;outline-offset:2px}
+.web-dictation .actions{flex-wrap:wrap;margin-top:12px}
+.web-dictation .button{white-space:normal}
