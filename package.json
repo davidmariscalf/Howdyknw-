@@ -2,12 +2,16 @@
   "name": "howdyknw",
   "version": "1.0.0",
   "private": true,
-  "description": "Audio en directo autorizado y observador del tráfico de tu Smart TV",
+  "description": "TV audio broadcaster for accessible microphones on Android TV and browsers, plus privacy traffic analyzer",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/pcm-playback.js && node --check public/report-utils.js && node --check public/experiments.js",
     "test": "node --test tests/*.test.js"
   },
-  "engines": {"node": ">=20"},
-  "dependencies": {"ws": "^8.18.0"}
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
 }
