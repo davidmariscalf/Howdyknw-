@@ -35,6 +35,8 @@
       <details><summary>Cómo conectar una TV alejada</summary>
         <p>Instala y abre Howdyknw en la televisión que está lejos. Usa la misma dirección segura de este servidor en la TV y en el móvil receptor. No hace falta compartir Wi-Fi ni abrir puertos en el router si alojas el servidor en Internet.</p>
         <div class="remote-address"><code id="remoteServerAddress">—</code><button id="copyRemoteAddress" class="button button-ghost" type="button">Copiar dirección para TV</button></div>
+        <button id="probeConnection" class="button button-ghost" type="button">Comprobar servidor</button>
+        <p id="probeStatus" class="footnote" role="status">Esta prueba comprueba HTTP y WebSocket; no activa ni envía audio.</p>
         <p>En la app Android TV pega la dirección <strong>WSS</strong> y el mismo código de sala que en el receptor. Para Tizen usa la dirección HTTPS. La TV debe permitir y activar el micrófono; cerrar la app corta el audio. Si no está disponible, solo se puede compartir texto por el teclado del sistema.</p>
         <p class="footnote">Si esta web muestra localhost o una dirección local, todavía necesitas publicar el servidor mediante HTTPS. No expongas un servicio sin contraseña ni reutilices códigos de sala compartidos.</p>
       </details>
@@ -51,7 +53,7 @@
           <p class="listener-count" id="sourceListeners" role="status">Receptores conectados: 0</p>
           <div id="sourceStatus" class="status" role="status"><span class="status-indicator"></span><span id="sourceMessage">Micrófono apagado.</span></div>
           <div class="actions"><button id="startSource" class="button button-primary">◉ &nbsp; Activar micrófono</button><button id="stopSource" class="button button-ghost" disabled>Detener</button></div>
-          <button id="copyRoom" class="link-action" disabled>Copiar enlace para escuchar ↗</button>
+          <button id="copyRoom" class="link-action">Copiar enlace para escuchar ↗</button>
           <div id="micNotice" class="notice" hidden>● MICRÓFONO ENCENDIDO · EL AUDIO SE ESTÁ COMPARTIENDO</div>
           <div class="web-dictation">
             <h4>Si el micrófono está bloqueado: probar el teclado</h4>
