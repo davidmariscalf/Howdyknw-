@@ -34,7 +34,9 @@ async function client(){const ws=new WebSocket(base);await once(ws,"open");retur
 test("HTTP entrega UI y responde API de salud y configuración",async()=>{
   const page=await fetch(origin+"/");
   assert.equal(page.status,200);
-  assert.match(await page.text(),/HOWDYKNW/);
+  const html=await page.text();
+  assert.match(html,/HOWDYKNW/);
+  assert.match(html,/transcriptLog/);
   const health=await (await fetch(origin+"/api/health")).json();
   assert.equal(health.status,"ok");
   const config=await (await fetch(origin+"/api/config")).json();
@@ -76,6 +78,35 @@ test("WebSocket une emisor y receptor, transmite señales y notifica desconexion
       await left;
     }finally{listener.close();}
   }finally{source.close();}
+});
+test("dictation mode sends only explicit text, marks audio unavailable and acknowledges",async()=>{
+  const room="DICTTEST49";
+  const listener=await client();
+  try{
+    const listenerReady=message(listener,m=>m.type==="joined");
+    listener.send(JSON.stringify({type:"join",role:"listener",room}));
+    await listenerReady;
+    const source=await client();
+    try{
+      const sourceReady=message(source,m=>m.type==="joined");
+      const mode=message(listener,m=>m.type==="source-mode");
+      source.send(JSON.stringify({type:"join",role:"source",room,transport:"text"}));
+      const meta=await sourceReady;
+      assert.equal(meta.role,"source");
+      assert.equal((await mode).transport,"text");
+      const received=message(listener,m=>m.type==="transcript");
+      const acknowledged=message(source,m=>m.type==="transcript-sent");
+      source.send(JSON.stringify({type:"transcript",text:"Prueba de voz voluntaria."}));
+      const packet=await received;
+      assert.equal(packet.text,"Prueba de voz voluntaria.");
+      assert.equal(packet.audioAvailable,false);
+      assert.equal(packet.format,"text");
+      assert.equal((await acknowledged).listeners,1);
+      const bad=message(source,m=>m.type==="error");
+      source.send(JSON.stringify({type:"transcript",text:"x".repeat(1001)}));
+      assert.match((await bad).message,/Transcripción inválida/);
+    }finally{source.close();}
+  }finally{listener.close();}
 });
 test("WebSocket rechaza códigos inválidos y roles falsos",async()=>{
   const ws=await client();
