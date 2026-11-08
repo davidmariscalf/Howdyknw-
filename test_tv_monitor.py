@@ -47,6 +47,16 @@ class TvMonitorTests(unittest.TestCase):
         self.assertEqual(report["destinations"][0]["domains"], ["example.org"])
         self.assertEqual(report["seconds"], 180)
 
+    def test_empty_streaming_capture_does_not_crash(self):
+        times = TimeBounds()
+        report = make_report(self.tv, self.stats, self.dns, times, 20.0, True)
+        self.assertEqual(report["seconds"], 20.0)
+        self.assertIsNone(report["first_observed_utc"])
+        times.append(0.0)
+        report = make_report(self.tv, self.stats, self.dns, times, 20.0, True)
+        self.assertEqual(report["seconds"], 0.0)
+        self.assertIsNotNone(report["first_observed_utc"])
+
     def test_large_capture_uses_constant_memory(self):
         times = TimeBounds()
         for timestamp in range(100000):
