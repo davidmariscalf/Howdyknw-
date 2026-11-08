@@ -23,7 +23,7 @@ function peer(ws,to,isSource){
     for(const track of session.stream.getAudioTracks())pc.addTrack(track,session.stream);
   }else{
     pc.ontrack=event=>{
-      const audio=$("audioPlayer");audio.srcObject=event.streams[0];
+      const audio=$("audioPlayer");audio.srcObject=event.streams?.[0] || new MediaStream([event.track]);
       audio.play().catch(()=>setStatus("listener","Audio recibido: pulsa ▶ para reproducir.","live"));
     };
   }
@@ -90,8 +90,9 @@ $("startSource").addEventListener("click",async()=>{
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
   if(!navigator.mediaDevices?.getUserMedia)return setStatus("source","El micrófono exige HTTPS o localhost.","error");
   $("startSource").disabled=true;setStatus("source","Solicitando permiso del micrófono...");
-  try{session.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:true},video:false});}
+  try{session.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true},video:false});}
   catch(err){$("startSource").disabled=false;return setStatus("source","No se ha activado el micrófono: "+err.message,"error");}
+  for(const track of session.stream.getAudioTracks()){track.addEventListener("ended",()=>{if(session.stream){closeSource();setStatus("source","El sistema detuvo el micrófono.","error");}},{once:true});}
   $("micNotice").hidden=false;$("stopSource").disabled=false;
   $("copyRoom").disabled=false;$("sourceRoom").value=room;
   const ws=wsOpen();session.source=ws;
@@ -140,50 +141,161 @@ $("startListener").addEventListener("click",()=>{
   ws.onclose=()=>{if(session.listener===ws){closeListener();setStatus("listener","Se perdió la conexión del servidor.","error");}};
   ws.onerror=()=>setStatus("listener","Fallo de conexión.","error");
 });
-function bytes(n){if(!Number.isFinite(n))return "—";const units=["B","KB","MB","GB","TB"];let k=0;while(n>=1024&&k<units.length-1){n/=1024;k++;}return n.toFixed(k?1:0)+" "+units[k];}
-function renderReport(data,kind){
-  if(!data||!Array.isArray(data.destinations))throw new Error("Formato JSON inválido: falta destinations.");
-  const legacy=data.source==="tshark_capture";
-  const items=data.destinations.map(item=>({
-    ...item,
-    domains:Array.isArray(item.domains)?item.domains:(Array.isArray(item.tls_sni)?item.tls_sni:[]),
-    sent_bytes:Number(item.sent_bytes??item.bytes??0),
-    received_bytes:legacy?null:Number(item.received_bytes??0)
-  }));
-  $("metricDestinations").textContent=String(items.length);
-  $("metricSent").textContent=bytes(items.reduce((sum,i)=>sum+(Number(i.sent_bytes)||0),0));
-  $("metricReceived").textContent=legacy?"No medido":bytes(items.reduce((sum,i)=>sum+(Number(i.received_bytes)||0),0));
-  $("metricPackets").textContent=items.reduce((sum,i)=>sum+(Number(i.packets)||0),0).toLocaleString("es-ES");
-  const tv=String(data.tv_ip||"no indicada");const t=data.updated_at?new Date(data.updated_at).toLocaleString("es-ES"):(data.last_outbound_utc||"sin fecha");
-  $("networkStatus").textContent=(kind==="import"?"Archivo importado":"Informe del servidor")+" · TV "+tv+" · "+t+(legacy?" · solo tráfico saliente":"");
+
+function bytes(n) {
+  if (!Number.isFinite(n)) return "—";
+  const units=["B","KB","MB","GB","TB"];let k=0;
+  while(n>=1024&&k<units.length-1){n/=1024;k++;}
+  return n.toLocaleString("es-ES",{maximumFractionDigits:k?2:0})+" "+units[k];
+}
+const audit={primary:null,secondary:null,imported:false,demo:false};
+function reportTimestamp(str) {
+  if(!str)return "sin fecha";
+  const t=Date.parse(str);
+  return Number.isFinite(t)?new Date(t).toLocaleString("es-ES"):"sin fecha";
+}
+function renderDestinations() {
   const body=$("destinationRows");body.replaceChildren();
-  const ordered=[...items].sort((a,b)=>((b.sent_bytes||0)+(b.received_bytes||0))-((a.sent_bytes||0)+(a.received_bytes||0)));
-  for(const i of ordered.slice(0,300)){
+  const r=audit.primary;
+  const q=$("destinationSearch").value.trim().toLowerCase();
+  const visible=r?r.destinations.filter(d=>[d.ip,...d.domains,...d.ports].join(" ").toLowerCase().includes(q)):[];
+  $("visibleCount").textContent=visible.length+" visibles"+(visible.length>500?" (se muestran 500)":"");
+  for(const d of visible.slice(0,500)){
     const tr=document.createElement("tr");
-    for(const val of [i.ip||"—",Array.isArray(i.domains)?i.domains.join(", ")||"Desconocido":"Desconocido",
-      bytes(Number(i.sent_bytes)||0),legacy?"No medido":bytes(Number(i.received_bytes)||0),Number(i.packets||0).toLocaleString("es-ES")]){
-      const td=document.createElement("td");td.textContent=val;tr.appendChild(td);
+    for(const val of [d.ip, d.domains.join(", ")||"No visible",d.ports.join(", ")||"—",
+      bytes(d.sent_bytes),bytes(d.received_bytes),d.packets.toLocaleString("es-ES")]){
+      const cell=document.createElement("td");cell.textContent=val;tr.appendChild(cell);
     }
     body.appendChild(tr);
   }
-  if(!items.length){const tr=document.createElement("tr");const td=document.createElement("td");td.colSpan=5;td.className="empty-cell";td.textContent="No se observaron conexiones en esta captura.";tr.appendChild(td);body.appendChild(tr);}
+  if(!visible.length){
+    const tr=document.createElement("tr"),cell=document.createElement("td");
+    cell.colSpan=6;cell.className="empty-cell";
+    cell.textContent=r?"Sin coincidencias en este informe.":"Aún no hay tráfico capturado. Carga un JSON o prueba el ejemplo.";
+    tr.append(cell);body.append(tr);
+  }
 }
-let imported=false;
+function renderComparison() {
+  const target=$("comparisonStatus");target.classList.remove("warning");
+  const a=audit.primary,b=audit.secondary;
+  if(!a&&!b){target.textContent="Carga dos sesiones reales o pulsa «Ver ejemplo» para conocer cómo funciona.";return;}
+  if(!a){target.classList.add("warning");target.textContent="Falta la sesión A para comparar.";return;}
+  if(!b){target.textContent="Sesión A lista. Importa la sesión B del mismo televisor.";return;}
+  try{
+    const d=HowdyReport.compareReports(a,b);
+    const newText=d.newIps.length?d.newIps.slice(0,5).join(", "):"ninguna";
+    const removedText=d.absentIps.length?d.absentIps.slice(0,5).join(", "):"ninguna";
+    let msg=(audit.demo?"EJEMPLO SINTÉTICO · ":"")+
+      "A → B: "+d.newIps.length+" IP nuevas ("+newText+"); "+
+      d.absentIps.length+" IP que dejan de verse ("+removedText+"). "+
+      "Bytes salientes observados: "+bytes(a.totals.sent)+" → "+bytes(b.totals.sent)+". ";
+    if(!d.comparableDuration)msg+="Atención: sin duraciones equivalentes no compares volúmenes directamente. ";
+    msg+="Una diferencia de conexiones NO prueba que se enviase audio.";
+    target.textContent=msg;
+    if(!d.comparableDuration)target.classList.add("warning");
+  }catch(e){target.classList.add("warning");target.textContent=e.message;}
+}
+function renderAudit() {
+  const r=audit.primary;
+  $("metricDestinations").textContent=r?String(r.destinations.length):"—";
+  $("metricSent").textContent=r?bytes(r.totals.sent):"—";
+  $("metricReceived").textContent=r?bytes(r.totals.received):"—";
+  $("metricPackets").textContent=r?r.totals.packets.toLocaleString("es-ES"):"—";
+  $("downloadCsv").disabled=!r;
+  $("networkStatus").textContent=r?
+    (audit.demo?"EJEMPLO (datos ficticios) · ":"")+
+    r.label+" · TV "+r.tv_ip+" · "+reportTimestamp(r.updated_at):
+    "Sin informe. Configura una captura o importa un archivo JSON.";
+  renderDestinations();renderComparison();
+}
+function acceptReport(raw,slot="primary",kind="import"){
+  const result=HowdyReport.normalizeReport(raw);
+  audit[slot]=result;
+  if(kind==="import") {audit.imported=true;audit.demo=false;}
+  renderAudit();
+}
 async function refreshReport(force=false){
-  if(imported&&!force)return;
-  if(force)imported=false;
-  try{const r=await fetch("/api/report",{cache:"no-store"});if(!r.ok)throw Error("Sin informe");
-    renderReport(await r.json(),"server");
-  }catch{if(force || $("metricDestinations").textContent==="—")$("networkStatus").textContent="Sin informe de red. Ejecuta el monitor o importa un archivo JSON.";}
+  if(audit.imported&&!force)return;
+  try{
+    const r=await fetch("/api/report",{cache:"no-store"});
+    if(!r.ok)throw Error("Sin informe");
+    const data=await r.json();
+    if(!audit.imported)acceptReport(data,"primary","server");
+  }catch{
+    if(force){
+      audit.primary=null;audit.secondary=null;
+      renderAudit();
+    }
+  }
 }
-$("reloadReport").addEventListener("click",()=>refreshReport(true));
-$("uploadReport").addEventListener("change",async event=>{
-  const file=event.target.files?.[0];if(!file)return;
-  try{renderReport(JSON.parse(await file.text()),"import");imported=true;}
-  catch(e){$("networkStatus").textContent="No se pudo importar el informe: "+e.message;}
+async function importFromPicker(e,slot){
+  const file=e.target.files?.[0];e.target.value="";
+  if(!file)return;
+  if(file.size>15*1024*1024){
+    $("networkStatus").textContent="Archivo demasiado grande (máximo 15 MB).";return;
+  }
+  try{acceptReport(JSON.parse(await file.text()),slot);}
+  catch(err){$("networkStatus").textContent="No se pudo importar: "+err.message;}
+}
+$("uploadReport").addEventListener("change",e=>importFromPicker(e,"primary"));
+$("uploadCompare").addEventListener("change",e=>importFromPicker(e,"secondary"));
+$("reloadReport").addEventListener("click",()=>{
+  audit.imported=false;audit.demo=false;audit.primary=null;audit.secondary=null;renderAudit();
+  refreshReport(true);
 });
+$("clearComparison").addEventListener("click",()=>{
+  audit.secondary=null;renderAudit();
+});
+$("destinationSearch").addEventListener("input",renderDestinations);
+$("loadDemo").addEventListener("click",async()=>{
+  try{
+    const [a,b]=await Promise.all([
+      fetch("/examples/encendida.json").then(r=>{if(!r.ok)throw Error("Sin ejemplo A");return r.json();}),
+      fetch("/examples/reposo.json").then(r=>{if(!r.ok)throw Error("Sin ejemplo B");return r.json();})
+    ]);
+    audit.primary=HowdyReport.normalizeReport(a);
+    audit.secondary=HowdyReport.normalizeReport(b);
+    audit.demo=true;audit.imported=true;
+    renderAudit();
+  }catch(err){$("networkStatus").textContent="No se pudo cargar el ejemplo: "+err.message;}
+});
+$("downloadCsv").addEventListener("click",()=>{
+  if(!audit.primary)return;
+  const contents=HowdyReport.csvExport(audit.primary);
+  const blob=new Blob([contents],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url;link.download="howdyknw-destinos.csv";link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+});
+function updateCaptureCommand() {
+  const ip=$("tvIp").value.trim();
+  const iface=$("captureInterface").value.trim();
+  const seconds=$("captureSeconds").value;
+  const validIP=/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)&&
+    ip.split(".").every(part=>Number(part)>=0&&Number(part)<=255);
+  const validIface=/^[\w. -]{1,70}$/.test(iface);
+  $("copyCommand").disabled=!(validIP&&validIface);
+  if(!validIP||!validIface){
+    $("captureCommand").textContent="Introduce una IPv4 y una interfaz válidas.";
+    $("captureWarning").textContent="No se genera un comando con valores inválidos.";
+    return;
+  }
+  // Always quote the interface; allowed characters exclude shell expansions.
+  const command='python tv_monitor.py --interface "'+iface+
+    '" --tv-ip '+ip+' --duration '+seconds+' --output data/report.json';
+  $("captureCommand").textContent=command;
+  $("captureWarning").textContent="El equipo debe ver realmente el tráfico de la TV. Consulta primero «tshark -D».";
+}
+["tvIp","captureInterface","captureSeconds"].forEach(id=>
+  $(id).addEventListener(id==="captureSeconds"?"change":"input",updateCaptureCommand));
 $("copyCommand").addEventListener("click",async()=>{
-  try{await navigator.clipboard.writeText("python tv_monitor.py --interface 1 --tv-ip 192.168.1.50");$("copyCommand").textContent="Copiado ✓";}
-  catch{$("copyCommand").textContent="Selecciona el texto para copiar";}
+  const value=$("captureCommand").textContent;
+  if($("copyCommand").disabled)return;
+  try{await navigator.clipboard.writeText(value);$("copyCommand").textContent="Copiado ✓";}
+  catch{$("copyCommand").textContent="Selecciona el comando para copiar";}
 });
-refreshReport();setInterval(()=>refreshReport(false),4000);
+updateCaptureCommand();
+renderAudit();
+refreshReport();
+setInterval(()=>refreshReport(false),4000);
