@@ -14,6 +14,8 @@ jobs:
         run: python -m unittest -v
       - name: Python compile
         run: python -m py_compile howdyknw.py tv_monitor.py
+      - name: Tizen package manifest parses
+        run: python -c "import xml.etree.ElementTree as e; e.parse('tizen-tv/config.xml')"
   frontend-syntax:
     runs-on: ubuntu-latest
     steps:
@@ -29,5 +31,7 @@ jobs:
           node --check public/app.js
           node --check public/report-utils.js
           node --check public/experiments.js
+          node --check public/pcm-playback.js
+          node --check tizen-tv/app.js
       - name: Node integration tests
         run: npm test
