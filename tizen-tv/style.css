@@ -19,3 +19,12 @@ button:disabled{opacity:.38}
 .status.live{background:#204333;border-color:#75d7b4}
 .status.error{background:#4a2828;border-color:#f09b79}
 .support,footer{color:#a7c4d2;font-size:16px;line-height:1.6}
+
+.dictation{border-top:2px solid #365763;margin-top:32px;padding-top:24px}
+.dictation h2{font-size:28px;color:#8af3df}
+.dictation p{color:#bad1dc;font-size:18px;line-height:1.5}
+.dictation label{display:block;font-size:20px;margin:16px 0 10px}
+.dictation textarea{width:100%;resize:vertical;background:#0b1822;color:#f8ffff;border:2px solid #41636d;border-radius:12px;padding:16px;font:23px/1.45 Arial,Helvetica,sans-serif}
+.dictation textarea:focus{outline:5px solid #82e5d7;outline-offset:3px}
+.dictation .buttons{flex-wrap:wrap;margin-top:15px}
+.dictation #shareText{background:#243f49;color:#e9fffc;border:2px solid #5f858d}
