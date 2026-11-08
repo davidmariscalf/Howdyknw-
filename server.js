@@ -9,10 +9,15 @@ const { WebSocketServer, WebSocket } = require("ws");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const REPORT_FILE = process.env.TV_REPORT_FILE || path.join(__dirname, "data", "report.json");
 const MIME = {".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"application/javascript; charset=utf-8",".svg":"image/svg+xml",".json":"application/json; charset=utf-8"};
+const REMOTE_MODE = process.env.REMOTE_MODE === "1" || Boolean(process.env.RAILWAY_ENVIRONMENT);
 const rooms = new Map();
+const MAX_LISTENERS = 4;
 const peers = new Map();
 
 const requestHandler = async (req, res) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "DENY");
   if (!["GET", "HEAD"].includes(req.method)) {res.writeHead(405);return res.end();}
   let pathname;
   try {pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);} catch {res.writeHead(400);return res.end();}
@@ -24,6 +29,7 @@ const requestHandler = async (req, res) => {
     return json(res,200,{iceServers});
   }
   if (pathname === "/api/report") {
+    if (REMOTE_MODE && process.env.ALLOW_REMOTE_REPORT !== "1") return json(res,403,{error:"El informe local de la TV está deshabilitado en el servidor remoto"});
     try {
       const report = JSON.parse(await fs.promises.readFile(REPORT_FILE, "utf8"));
       return json(res,200,report);
@@ -65,6 +71,7 @@ function leave(ws){
   peers.delete(ws.id);ws.room=null;
 }
 wss.on("connection",ws=>{
+  if (wss.clients.size > 80) {ws.close(1013,"Servidor lleno");return;}
   ws.id=crypto.randomUUID();
   ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;ws.transcriptCount=0;
   ws.on("message",raw=>{
@@ -76,6 +83,7 @@ wss.on("connection",ws=>{
       if(!/^[A-Z0-9]{8,16}$/.test(roomCode)||!["source","listener"].includes(role))return send(ws,{type:"error",message:"Sala o rol no válido"});
       const room=getRoom(roomCode);
       if(role==="source"&&room.source)return send(ws,{type:"error",message:"Esta sala ya tiene un micrófono activo"});
+      if(role==="listener"&&room.listeners.size >= MAX_LISTENERS)return send(ws,{type:"error",message:"Sala llena: máximo 4 receptores"});
       ws.room=roomCode;ws.role=role;
       ws.audioTransport=role==="source"&&["pcm16","text"].includes(m.transport)?m.transport:"webrtc";
       peers.set(ws.id,ws);
@@ -135,7 +143,7 @@ wss.on("connection",ws=>{
 });
 if(require.main===module){
   const port=Number(process.env.PORT||3000);
-  const host=process.env.HOST||"127.0.0.1";
+  const host=process.env.HOST||(REMOTE_MODE?"0.0.0.0":"127.0.0.1");
   server.listen(port,host,()=>console.log("Howdyknw funcionando en "+(useTls?"https":"http")+"://"+(host==="0.0.0.0"?"localhost":host)+":"+port+(host==="0.0.0.0"?" (expuesto en todas las interfaces)":"")));
 }
 module.exports={server,wss,rooms};
