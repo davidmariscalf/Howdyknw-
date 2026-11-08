@@ -102,17 +102,18 @@ def make_report(tv: str, stats: dict, dns_records: dict, times: list,
     else:
         first = min(times) if times else None
         last = max(times) if times else None
-    seconds = max(0, last - first) if from_pcap and times else elapsed
+    seconds = (max(0, last - first) if from_pcap and
+               first is not None and last is not None else elapsed)
     return {
         "schema_version": 1,
         "source": "pcap" if from_pcap else "live_capture",
         "tv_ip": tv,
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "first_observed_utc": (
-            datetime.fromtimestamp(first, timezone.utc).isoformat() if first else None
+            datetime.fromtimestamp(first, timezone.utc).isoformat() if first is not None else None
         ),
         "last_observed_utc": (
-            datetime.fromtimestamp(last, timezone.utc).isoformat() if last else None
+            datetime.fromtimestamp(last, timezone.utc).isoformat() if last is not None else None
         ),
         "seconds": round(seconds, 2),
         "destinations": destinations,
