@@ -7,6 +7,7 @@
   <meta name="description" content="Audio en directo entre dispositivos autorizados y observador de conexiones de Smart TV.">
   <title>Howdyknw · Escucha y observa tu Smart TV</title>
   <link rel="stylesheet" href="/style.css">
+  <script src="/report-utils.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -58,15 +59,20 @@
         <div class="metric"><span>Datos recibidos</span><strong id="metricReceived">—</strong></div>
         <div class="metric"><span>Paquetes capturados</span><strong id="metricPackets">—</strong></div>
       </div>
+      <section class="compare-panel" aria-label="Comparar sesiones">
+        <div><strong>Comparar capturas</strong><p>Importa dos informes de la misma TV. Distingue el tráfico observado de cualquier conclusión sobre audio.</p></div>
+        <div class="compare-actions"><label class="button button-ghost upload-label" for="uploadCompare">＋ Importar sesión B<input id="uploadCompare" type="file" accept="application/json,.json" hidden></label><button id="loadDemo" class="button button-ghost" type="button">Ver ejemplo</button><button id="clearComparison" class="button button-ghost" type="button">Limpiar B</button></div>
+        <div id="comparisonStatus" class="compare-result" role="status">Esperando sesión B. Carga primero una captura real o consulta el ejemplo.</div>
+      </section>
       <div class="network-card">
         <div class="network-top">
           <div><strong>Conexiones detectadas</strong><div id="networkStatus" class="network-subtitle" role="status">No hay todavía un informe de captura.</div></div>
-          <div class="network-actions"><label class="button button-ghost upload-label" for="uploadReport">Importar JSON<input id="uploadReport" type="file" accept="application/json,.json" hidden></label><button id="reloadReport" class="button button-ghost">↻ Actualizar</button></div>
+          <div class="network-actions"><label class="button button-ghost upload-label" for="uploadReport">Importar sesión A<input id="uploadReport" type="file" accept="application/json,.json" hidden></label><button id="reloadReport" class="button button-ghost" type="button">↻ Actualizar</button><button id="downloadCsv" class="button button-ghost" type="button" disabled>↓ CSV</button></div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Destino IP</th><th>Dominio observado</th><th>Enviados</th><th>Recibidos</th><th>Paquetes</th></tr></thead><tbody id="destinationRows"><tr><td colspan="5" class="empty-cell">Todavía no has capturado tráfico de tu televisión.</td></tr></tbody></table></div>
+        <div class="table-filter"><label for="destinationSearch">Filtrar destinos</label><input id="destinationSearch" type="search" placeholder="IP, dominio, puerto…" autocomplete="off"><span id="visibleCount">0 visibles</span></div><div class="table-wrap"><table><thead><tr><th>Destino IP</th><th>Dominios visibles</th><th>Puertos</th><th>Enviados</th><th>Recibidos</th><th>Paquetes</th></tr></thead><tbody id="destinationRows"><tr><td colspan="6" class="empty-cell">Todavía no has capturado tráfico de tu televisión.</td></tr></tbody></table></div>
       </div>
       <div class="instructions"><div class="overline">EMPEZAR A CAPTURAR</div><h3>Desde un ordenador con TShark</h3><p>El equipo de captura debe poder ver el tráfico de la TV: por ejemplo, en el router, un puerto espejo o un punto de acceso propio. Estar en el mismo Wi-Fi no garantiza verlo.</p>
-      <div class="command"><code>python tv_monitor.py --interface 1 --tv-ip 192.168.1.50</code><button id="copyCommand" aria-label="Copiar comando">Copiar</button></div>
+      <div class="capture-fields"><label>IP de tu TV<input id="tvIp" inputmode="decimal" value="192.168.1.50" aria-label="Dirección IP de la TV"></label><label>Interfaz de TShark<input id="captureInterface" value="1" aria-label="Interfaz de captura"></label><label>Segundos<select id="captureSeconds" aria-label="Duración de captura"><option value="60">60</option><option value="180" selected>180</option><option value="600">600</option></select></label></div><div class="command"><code id="captureCommand">python tv_monitor.py --interface 1 --tv-ip 192.168.1.50 --duration 180</code><button id="copyCommand" aria-label="Copiar comando">Copiar</button></div><p id="captureWarning" class="footnote" role="status">El equipo de captura debe estar en la ruta del tráfico.</p>
       <p class="footnote">Sustituye la interfaz y la IP por las tuyas. También puedes analizar una captura existente con <code>--pcap archivo.pcapng</code>. El informe aparece aquí si se ejecuta junto al servidor, o puedes importarlo como JSON.</p></div>
       <div class="callout"><div class="callout-icon">!</div><div><strong>Qué se puede y no se puede saber</strong><p>Se observan direcciones IP, dominios DNS/SNI cuando aparecen, puertos y volúmenes aproximados. El contenido HTTPS cifrado, consultas DNS cifradas y tráfico que no pasa por tu punto de captura no son visibles.</p></div></div>
     </section>
