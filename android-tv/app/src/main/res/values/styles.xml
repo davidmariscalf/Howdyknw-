@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="HowdyTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">#82E4D1</item>
+        <item name="android:statusBarColor">#08111C</item>
+        <item name="android:navigationBarColor">#08111C</item>
+        <item name="android:windowBackground">#08111C</item>
+    </style>
+</resources>
