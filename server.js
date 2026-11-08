@@ -1,5 +1,6 @@
 "use strict";
 const http = require("node:http");
+const https = require("node:https");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -7,11 +8,11 @@ const { WebSocketServer, WebSocket } = require("ws");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const REPORT_FILE = process.env.TV_REPORT_FILE || path.join(__dirname, "data", "report.json");
-const MIME = {".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"application/javascript; charset=utf-8",".svg":"image/svg+xml"};
+const MIME = {".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"application/javascript; charset=utf-8",".svg":"image/svg+xml",".json":"application/json; charset=utf-8"};
 const rooms = new Map();
 const peers = new Map();
 
-const server = http.createServer(async (req, res) => {
+const requestHandler = async (req, res) => {
   if (!["GET", "HEAD"].includes(req.method)) {res.writeHead(405);return res.end();}
   let pathname;
   try {pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);} catch {res.writeHead(400);return res.end();}
@@ -37,7 +38,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "HEAD") return res.end();
     fs.createReadStream(filepath).pipe(res);
   } catch {res.writeHead(404);res.end("No encontrado");}
-});
+};
+const useTls = Boolean(process.env.TLS_CERT_FILE && process.env.TLS_KEY_FILE);
+const server = useTls ? https.createServer({
+  cert: fs.readFileSync(process.env.TLS_CERT_FILE),
+  key: fs.readFileSync(process.env.TLS_KEY_FILE)
+}, requestHandler) : http.createServer(requestHandler);
 function json(res,status,obj){res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});res.end(JSON.stringify(obj));}
 const wss = new WebSocketServer({server,maxPayload:180000});
 function send(ws,msg){if(ws && ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg));}
@@ -92,7 +98,7 @@ wss.on("connection",ws=>{
 });
 if(require.main===module){
   const port=Number(process.env.PORT||3000);
-  const host=process.env.HOST||"0.0.0.0";
-  server.listen(port,host,()=>console.log("Howdyknw funcionando en http://localhost:"+port));
+  const host=process.env.HOST||"127.0.0.1";
+  server.listen(port,host,()=>console.log("Howdyknw funcionando en "+(useTls?"https":"http")+"://"+(host==="0.0.0.0"?"localhost":host)+":"+port+(host==="0.0.0.0"?" (expuesto en todas las interfaces)":"")));
 }
 module.exports={server,wss,rooms};
