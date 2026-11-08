@@ -98,3 +98,10 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 .relay-mode{display:flex;align-items:flex-start;gap:10px;margin-top:17px;padding:14px;border:1px solid #3d5b6b;border-radius:11px;background:#172733;color:#bcd1de;font-size:12px;line-height:1.55}
 .relay-mode input{flex:0 0 18px;width:18px;height:18px;margin:1px 0 0;accent-color:#8ce5d5}
 .relay-mode strong{color:#d9f9f3}
+
+.listener-count{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;margin:14px 0 8px;border:1px solid #3c5763;border-radius:999px;background:#122633;color:#b0e6d9;font-size:12px;font-weight:650}
+.listener-count::before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#69e2c4}
+.volume-control{display:grid;grid-template-columns:1fr minmax(100px,2fr) auto;align-items:center;gap:10px;margin:15px 0;padding:12px;border-radius:12px;background:#132330}
+.volume-control label,.volume-control output{font-size:12px;color:#daeeeb}
+.volume-control input{width:100%;accent-color:#7fe6d1;cursor:pointer}
+@media(max-width:550px){.volume-control{grid-template-columns:1fr auto}.volume-control input{grid-row:2;grid-column:1/-1}}
