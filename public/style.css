@@ -83,3 +83,14 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 .web-dictation textarea:focus{outline:2px solid #8ce5d5;outline-offset:2px}
 .web-dictation .actions{flex-wrap:wrap;margin-top:12px}
 .web-dictation .button{white-space:normal}
+
+.remote-setup{margin:17px 0 0;padding:20px 24px;border:1px solid #335b68;border-radius:16px;background:linear-gradient(110deg,#142c37,#11202d)}
+.remote-title{display:flex;align-items:center;gap:16px}
+.remote-title strong{font-size:17px;color:#e0f9f4}
+.remote-title p{margin:4px 0;font-size:12px}
+.remote-icon{font-size:26px;flex:0 0 48px;width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#244b53;color:#8cebd6}
+.remote-setup summary{color:#a3efe0;cursor:pointer;font-weight:700;font-size:13px;margin:10px 0 0}
+.remote-setup p{font-size:13px}
+.remote-address{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.remote-address code{display:block;flex:1;min-width:160px;background:#081924;padding:12px;border-radius:9px;color:#d6f5f2;overflow-wrap:anywhere}
+.remote-address button{white-space:normal}
