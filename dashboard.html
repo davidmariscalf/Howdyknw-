@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Howdyknw · TV Privacy Lab</title>
+  <style>
+    :root { color-scheme:dark; --bg:#080b12; --panel:#111724; --edge:#293244;
+      --ink:#f3f6fd; --muted:#9ba8c1; --accent:#7ee7c3; --blue:#6cb6ff;
+      --orange:#fbb86d; }
+    * { box-sizing:border-box }
+    body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;
+      background:radial-gradient(ellipse at 88% -8%,#223f4e 0%,transparent 37%),var(--bg);
+      color:var(--ink); }
+    .shell { max-width:1160px; margin:auto; padding:24px }
+    header { display:flex; align-items:center; gap:13px; margin:8px 0 45px }
+    .logo { display:grid; place-items:center; width:44px; height:44px; border-radius:14px;
+      background:var(--accent); color:#05201a; font-size:25px; font-weight:850 }
+    .brand { font-size:19px; letter-spacing:-.5px; font-weight:800; line-height:1.2 }
+    .subbrand { color:var(--muted); font-size:12px }
+    .eyebrow { color:var(--accent); font-size:12px; letter-spacing:2px; font-weight:700 }
+    h1 { font-size:clamp(34px,6vw,67px); letter-spacing:-2.7px; line-height:1.06; max-width:800px;
+      margin:16px 0 18px }
+    .lead { color:var(--muted); max-width:700px; font-size:17px }
+    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:32px 0 }
+    .button { cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      padding:12px 17px; border-radius:12px; background:var(--accent); color:#05201a;
+      font-size:14px; font-weight:800; border:0 }
+    .button.secondary { background:#202a38; color:var(--ink); border:1px solid var(--edge) }
+    .button:focus-visible, input:focus-visible { outline:3px solid var(--blue); outline-offset:3px }
+    input[type=file] { display:none }
+    .hint { font-size:13px; color:var(--muted) }
+    .pill { display:inline-flex; padding:5px 10px; border:1px solid var(--edge);
+      border-radius:999px; color:var(--muted); font-size:12px; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; margin:27px 0 }
+    .panel { background:linear-gradient(155deg,#151e2b,#0e141f); border:1px solid var(--edge);
+      border-radius:17px; padding:22px; min-width:0 }
+    .stat { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:1px }
+    .value { font-size:34px; font-weight:800; letter-spacing:-1.3px; margin:9px 0 2px }
+    .panel h2 { font-size:20px; margin:0 0 10px; letter-spacing:-.3px }
+    .panel p { color:var(--muted); font-size:14px; margin:0 }
+    .two { display:grid; grid-template-columns:minmax(0,2fr) minmax(290px,1fr); gap:15px }
+    .tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:16px 0 }
+    input[type=search] { border:1px solid var(--edge); background:#0b111b; color:var(--ink);
+      padding:11px 13px; border-radius:10px; min-width:210px; width:100%; max-width:350px; }
+    .table-wrap { overflow-x:auto }
+    table { border-collapse:collapse; width:100%; font-size:13px }
+    th { text-align:left; color:var(--muted); font-size:11px; letter-spacing:1px;
+      text-transform:uppercase; font-weight:650; border-bottom:1px solid var(--edge) }
+    th,td { padding:12px 10px; vertical-align:top }
+    td { border-bottom:1px solid #222c3a }
+    td:first-child { font-weight:700 }
+    tr:last-child td { border-bottom:0 }
+    .small { font-size:12px; color:var(--muted) }
+    .path { overflow-wrap:anywhere }
+    .notice { border-left:3px solid var(--orange); padding:4px 0 4px 14px; margin:18px 0;
+      color:#e5d2b4; font-size:13px }
+    .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--orange);
+      margin-right:7px }
+    .stack { display:grid; gap:15px }
+    .list { padding-left:17px; margin:10px 0; color:var(--muted); font-size:13px }
+    .list li { margin:7px 0 }
+    footer { padding:32px 0; color:var(--muted); font-size:12px }
+    @media (max-width:760px) { .grid{grid-template-columns:1fr} .two{grid-template-columns:1fr}
+      .shell{padding:18px} header{margin-bottom:30px} }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header><div class="logo" aria-hidden="true">H</div><div>
+      <div class="brand">Howdyknw<span style="color:var(--accent)">.</span></div>
+      <div class="subbrand">TV PRIVACY LAB · LOCAL-FIRST</div>
+    </div></header>
+    <main>
+      <div class="eyebrow">ENTIENDE LO QUE HACE TU TELEVISIÓN</div>
+      <h1>Lo que tu tele envía. <span style="color:var(--accent)">Lo que podemos demostrar.</span></h1>
+      <p class="lead">Analiza capturas de red y compara los destinos que contacta tu Smart TV encendida y en reposo. Sin cuentas, sin anuncios y sin enviar tus datos a servidores externos.</p>
+      <div class="toolbar">
+        <label class="button" for="files">＋ Cargar informes JSON</label>
+        <input id="files" type="file" multiple accept=".json,application/json" aria-label="Cargar informes JSON">
+        <button class="button secondary" id="reset">Limpiar análisis</button>
+        <span id="status" class="pill" role="status">Sin capturas cargadas</span>
+      </div>
+      <div class="hint">Genera los JSON con <code>howdyknw.py analyze</code> y carga hasta dos informes del mismo televisor. Procesamiento completamente local.</div>
+      <div class="grid">
+        <section class="panel"><div class="stat">Paquetes salientes</div><div class="value" id="packets">—</div><div class="small" id="packets-note">Carga un informe real</div></section>
+        <section class="panel"><div class="stat">Destinos observados</div><div class="value" id="destinations">—</div><div class="small" id="destinations-note">IP y puerto</div></section>
+        <section class="panel"><div class="stat">Tráfico saliente observado</div><div class="value" id="traffic">—</div><div class="small">Suma de tamaños de tramas, no carga útil</div></section>
+      </div>
+      <div class="two">
+        <section class="panel">
+          <h2>Destinos de red</h2>
+          <p id="report-title">Aún no se ha importado ningún informe.</p>
+          <div class="tools"><input id="filter" type="search" placeholder="Buscar IP, dominio o puerto" aria-label="Filtrar destinos"><span id="count" class="pill">0 resultados</span></div>
+          <div class="table-wrap"><table><thead><tr><th>IP / ámbito</th><th>Puerto</th><th>Tramas</th><th>Bytes</th><th>SNI (si visible)</th></tr></thead><tbody id="rows"><tr><td colspan="5" class="small">Importa un informe para empezar.</td></tr></tbody></table></div>
+        </section>
+        <div class="stack">
+          <section class="panel">
+            <h2>Comparación</h2>
+            <p>Al cargar dos informes del mismo televisor, aparecen las diferencias en destinos y tráfico.</p>
+            <div class="notice" id="difference">Sin comparación disponible.</div>
+          </section>
+          <section class="panel">
+            <h2><span class="dot"></span>Auditoría de micrófono</h2>
+            <p><strong style="color:var(--ink)">Sin acceso verificado al audio interno.</strong> Esta aplicación no puede afirmar que escucha lo mismo que el televisor.</p>
+            <ul class="list">
+              <li>Comprobar modelo, versión webOS y función «Hi LG».</li>
+              <li>Realizar pruebas de voz voluntarias, con participantes informados.</li>
+              <li>Examinar registros obtenidos legítimamente del dispositivo.</li>
+              <li>Correlacionar pruebas con el tráfico observado; no confundir relación temporal con contenido de audio demostrado.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+      <div class="notice">Límites: una captura de red no muestra automáticamente conversaciones, ni prueba que se esté enviando audio. Las conexiones cifradas pueden ocultar dominios y contenidos. Si el punto de captura no ve el tráfico del televisor, el resultado será incompleto.</div>
+    </main>
+    <footer>Howdyknw · Laboratorio de privacidad. No se realizan peticiones de red desde este panel.</footer>
+  </div>
+  <script>
+    'use strict';
+    const byId = id => document.getElementById(id);
+    let reports = [];
+
+    function prettyBytes(n) {
+      if (!Number.isFinite(n)) return '—';
+      const units = ['B','KB','MB','GB'];
+      let i=0; while(n>=1024 && i<units.length-1){ n/=1024; i++; }
+      return n.toLocaleString('es-ES',{maximumFractionDigits:i?2:0})+' '+units[i];
+    }
+    function checkReport(r) {
+      if (!r || r.schema!==1 || r.source!=='tshark_capture' ||
+          typeof r.tv_ip!=='string' || !Array.isArray(r.destinations) ||
+          !Number.isFinite(r.outbound_packets) || !Number.isFinite(r.outbound_frame_bytes))
+        throw new Error('El archivo no es un informe de análisis de Howdyknw compatible.');
+      return r;
+    }
+    function td(text, className) {
+      const cell=document.createElement('td'); cell.textContent=String(text ?? '—');
+      if(className) cell.className=className;
+      return cell;
+    }
+    function renderRows() {
+      const body=byId('rows'); body.replaceChildren();
+      if(!reports.length) {
+        const tr=document.createElement('tr'), cell=td('Importa un informe para empezar.','small');
+        cell.colSpan=5; tr.append(cell); body.append(tr); return;
+      }
+      const term=byId('filter').value.toLowerCase();
+      const items=reports[reports.length-1].destinations.filter(d=>
+        [d.ip,d.port,...(Array.isArray(d.tls_sni)?d.tls_sni:[])].join(' ').toLowerCase().includes(term));
+      byId('count').textContent=items.length+' resultados';
+      for(const d of items.slice(0,500)) {
+        const tr=document.createElement('tr');
+        const location=(d.scope==='public'?'Pública':'Local / especial');
+        tr.append(
+          td((d.ip||'—')+' · '+location,'path'),
+          td(d.port||'—'),td(Number(d.packets||0).toLocaleString('es-ES')),
+          td(prettyBytes(Number(d.bytes)||0)),
+          td((d.tls_sni||[]).join(', ')||'No visible','path small')
+        ); body.append(tr);
+      }
+      if(!items.length){ const tr=document.createElement('tr'), cell=td('No hay destinos que coincidan.');cell.colSpan=5;tr.append(cell);body.append(tr); }
+    }
+    function render() {
+      const last=reports[reports.length-1];
+      byId('status').textContent=reports.length?reports.length+' informe(s) cargado(s)':'Sin capturas cargadas';
+      byId('packets').textContent=last?last.outbound_packets.toLocaleString('es-ES'):'—';
+      byId('packets-note').textContent=last?'IP '+last.tv_ip:'Carga un informe real';
+      byId('destinations').textContent=last?last.destinations.length.toLocaleString('es-ES'):'—';
+      byId('traffic').textContent=last?prettyBytes(last.outbound_frame_bytes):'—';
+      byId('report-title').textContent=last?'Informe: '+(last.label||'Sin etiqueta')+' · TV '+last.tv_ip:'Aún no se ha importado ningún informe.';
+      byId('difference').textContent='Sin comparación disponible.';
+      if(reports.length===2) {
+        const [a,b]=reports;
+        if(a.tv_ip!==b.tv_ip) {
+          byId('difference').textContent='Los informes pertenecen a diferentes direcciones IP. No se puede atribuir la comparación al mismo televisor.';
+        } else {
+          const before=new Set(a.destinations.map(d=>d.ip+':'+(d.port||'')));
+          const after=new Set(b.destinations.map(d=>d.ip+':'+(d.port||'')));
+          const added=[...after].filter(k=>!before.has(k));
+          const lost=[...before].filter(k=>!after.has(k));
+          byId('difference').textContent=(a.label||'Primero')+' → '+(b.label||'Segundo')+
+            ': '+added.length+' destinos nuevos, '+lost.length+' ya no observados. '+
+            'Paquetes: '+a.outbound_packets+' → '+b.outbound_packets+
+            '. No demuestra que se haya grabado o enviado audio.';
+        }
+      }
+      renderRows();
+    }
+    byId('files').addEventListener('change',async e=>{
+      const chosen=[...e.target.files].slice(0,2);
+      const loaded=[];
+      try {
+        for(const file of chosen) loaded.push(checkReport(JSON.parse(await file.text())));
+        reports=loaded; byId('filter').value=''; render();
+      } catch(err) { byId('status').textContent='Error: '+err.message; }
+      e.target.value='';
+    });
+    byId('filter').addEventListener('input',renderRows);
+    byId('reset').addEventListener('click',()=>{reports=[];byId('filter').value='';render();});
+    render();
+  </script>
+</body>
+</html>
