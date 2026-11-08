@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#091019">
+  <meta name="description" content="Audio en directo entre dispositivos autorizados y observador de conexiones de Smart TV.">
+  <title>Howdyknw · Escucha y observa tu Smart TV</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Howdyknw, inicio"><span class="brand-icon">H<span class="brand-point">·</span></span><span class="brand-name">HOWDYKNW<small>CONTROL DE DISPOSITIVOS</small></span></a>
+      <span class="chip"><span class="signal-dot"></span> Panel local</span>
+    </header>
+    <section class="intro">
+      <div class="overline">TU TELEVISIÓN, BAJO LA LUPA</div>
+      <h1>Escucha el sonido.<br><em>Descubre las conexiones.</em></h1>
+      <p>Un panel sencillo para transmitir sonido desde un dispositivo autorizado cerca de tu TV y observar el tráfico de red que puedas capturar.</p>
+    </section>
+    <div class="tabs" role="tablist" aria-label="Herramientas">
+      <button class="tab selected" data-tab="audio" role="tab" aria-controls="pane-audio" aria-selected="true"><span class="tab-icon">◉</span> Audio en directo</button>
+      <button class="tab" data-tab="network" role="tab" aria-controls="pane-network" aria-selected="false"><span class="tab-icon">⌁</span> Conexiones de TV</button>
+    </div>
+    <section id="pane-audio" class="pane" role="tabpanel">
+      <div class="section-head"><div><div class="overline">01 / AUDIO REMOTO</div><h2>Un dispositivo transmite. Otro escucha.</h2></div><span class="quiet-label">SIN GRABACIÓN</span></div>
+      <div class="device-grid">
+        <article class="device-card source-card">
+          <div class="card-heading"><div class="avatar microphone">◉</div><div><div class="step">DISPOSITIVO A</div><h3>Junto a la televisión</h3></div></div>
+          <p>Abre esta web en un móvil u ordenador cercano a la televisión. Pulsa Activar para conceder permiso al micrófono.</p>
+          <div class="field"><label for="sourceRoom">Código privado de la sala</label><div class="field-row"><input id="sourceRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del emisor"><button id="generateRoom" class="icon-button" title="Crear otro código" aria-label="Crear código nuevo">↻</button></div></div>
+          <div id="sourceStatus" class="status" role="status"><span class="status-indicator"></span><span id="sourceMessage">Micrófono apagado.</span></div>
+          <div class="actions"><button id="startSource" class="button button-primary">◉ &nbsp; Activar micrófono</button><button id="stopSource" class="button button-ghost" disabled>Detener</button></div>
+          <button id="copyRoom" class="link-action" disabled>Copiar enlace para escuchar ↗</button>
+          <div id="micNotice" class="notice" hidden>● MICRÓFONO ENCENDIDO · EL AUDIO SE ESTÁ COMPARTIENDO</div>
+        </article>
+        <article class="device-card listener-card">
+          <div class="card-heading"><div class="avatar headphones">♫</div><div><div class="step">DISPOSITIVO B</div><h3>Donde quieras escuchar</h3></div></div>
+          <p>Abre la misma web en otro dispositivo, introduce el código de sala y utiliza auriculares para evitar acoples.</p>
+          <div class="field"><label for="listenerRoom">Código de sala para conectarse</label><input id="listenerRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del receptor"></div>
+          <div id="listenerStatus" class="status" role="status"><span class="status-indicator"></span><span id="listenerMessage">Esperando conexión.</span></div>
+          <div class="actions"><button id="startListener" class="button button-primary">▷ &nbsp; Escuchar ahora</button><button id="stopListener" class="button button-ghost" disabled>Desconectar</button></div>
+          <audio id="audioPlayer" controls autoplay playsinline aria-label="Reproductor de audio recibido"></audio>
+          <p class="footnote">En algunos teléfonos deberás pulsar ▶ en el reproductor para activar el sonido.</p>
+        </article>
+      </div>
+      <div class="callout"><div class="callout-icon">i</div><div><strong>Cómo funciona</strong><p>El micrófono requiere HTTPS o localhost y se activa únicamente después de conceder permiso. WebRTC intenta enviar el sonido directamente entre los dispositivos. Para algunas redes necesitarás un servidor TURN.</p></div></div>
+    </section>
+    <section id="pane-network" class="pane" role="tabpanel" hidden>
+      <div class="section-head"><div><div class="overline">02 / ANÁLISIS DE TRÁFICO</div><h2>¿Con qué servidores habla tu televisión?</h2></div><span class="quiet-label">DATOS OBSERVADOS</span></div>
+      <div class="metrics">
+        <div class="metric"><span>Destinos únicos</span><strong id="metricDestinations">—</strong></div>
+        <div class="metric"><span>Datos enviados</span><strong id="metricSent">—</strong></div>
+        <div class="metric"><span>Datos recibidos</span><strong id="metricReceived">—</strong></div>
+        <div class="metric"><span>Paquetes capturados</span><strong id="metricPackets">—</strong></div>
+      </div>
+      <div class="network-card">
+        <div class="network-top">
+          <div><strong>Conexiones detectadas</strong><div id="networkStatus" class="network-subtitle" role="status">No hay todavía un informe de captura.</div></div>
+          <div class="network-actions"><label class="button button-ghost upload-label" for="uploadReport">Importar JSON<input id="uploadReport" type="file" accept="application/json,.json" hidden></label><button id="reloadReport" class="button button-ghost">↻ Actualizar</button></div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Destino IP</th><th>Dominio observado</th><th>Enviados</th><th>Recibidos</th><th>Paquetes</th></tr></thead><tbody id="destinationRows"><tr><td colspan="5" class="empty-cell">Todavía no has capturado tráfico de tu televisión.</td></tr></tbody></table></div>
+      </div>
+      <div class="instructions"><div class="overline">EMPEZAR A CAPTURAR</div><h3>Desde un ordenador con TShark</h3><p>El equipo de captura debe poder ver el tráfico de la TV: por ejemplo, en el router, un puerto espejo o un punto de acceso propio. Estar en el mismo Wi-Fi no garantiza verlo.</p>
+      <div class="command"><code>python tv_monitor.py --interface 1 --tv-ip 192.168.1.50</code><button id="copyCommand" aria-label="Copiar comando">Copiar</button></div>
+      <p class="footnote">Sustituye la interfaz y la IP por las tuyas. También puedes analizar una captura existente con <code>--pcap archivo.pcapng</code>. El informe aparece aquí si se ejecuta junto al servidor, o puedes importarlo como JSON.</p></div>
+      <div class="callout"><div class="callout-icon">!</div><div><strong>Qué se puede y no se puede saber</strong><p>Se observan direcciones IP, dominios DNS/SNI cuando aparecen, puertos y volúmenes aproximados. El contenido HTTPS cifrado, consultas DNS cifradas y tráfico que no pasa por tu punto de captura no son visibles.</p></div></div>
+    </section>
+    <footer>HOWDYKNW <span>·</span> Prototipo para equipos y redes propios <span>·</span> Sin anuncios</footer>
+  </div>
+</body>
+</html>
