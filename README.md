@@ -14,6 +14,14 @@ Proyecto multisoporte para estudiar el tráfico de red de televisores propios y 
 
 No se permite lectura silenciosa del micrófono, ejecución oculta en standby ni acceso a audio del mando reservado al asistente. La opción de voz de Gboard puede usar un servicio de reconocimiento remoto del proveedor.
 
+## Uso con la TV lejos (otra casa, ciudad o red)
+
+**Compatible en la arquitectura actual.** La TV, el móvil y el servidor no tienen que estar en la misma Wi-Fi. En el servidor ejecuta `npm run remote` y, en un segundo terminal, `tailscale funnel 3000` para obtener un dominio HTTPS público de Tailscale sin instalar Tailscale en la TV. También puedes alojar el servidor en Railway mediante el archivo `railway.json`. Cada dispositivo usa la **misma dirección HTTPS/WSS y código privado**.
+
+La app Android TV envía audio PCM directamente a través del servidor WSS. En el navegador, selecciona **Modo distancia (sin TURN)** antes de activar el micrófono. El servidor intermedia el audio y puede acceder a él durante el tránsito: **PCM vía WSS no es cifrado de extremo a extremo**. El modo WebRTC sí cifra entre participantes, pero puede necesitar TURN.
+
+Para evitar publicar informes de tráfico privados, el arranque `npm run remote` bloquea la API de reportes. No existe captación remota sin iniciar voluntariamente el micrófono en la TV. Para instrucciones paso a paso y limitaciones: **[Conexión con TV lejana](docs/REMOTE_CONNECTION.md)**.
+
 ## Inicio del servidor y receptor web
 
 Requiere Node.js 20 o superior:
