@@ -63,10 +63,14 @@
      this.context=null;this.source=null;this.processor=null;this.mute=null;
    }
  }
+ function canRelay(listeners,socketOpen,bufferedAmount){
+   return Number.isInteger(listeners)&&listeners>0&&socketOpen===true&&
+     Number.isFinite(bufferedAmount)&&bufferedAmount>=0&&bufferedAmount<128000;
+ }
  function toBase64(bytes){
    let result="";
    for(let i=0;i<bytes.length;i++)result+=String.fromCharCode(bytes[i]);
    return btoa(result);
  }
- return {Encoder,Capture,toBase64};
+ return {Encoder,Capture,toBase64,canRelay};
 });
