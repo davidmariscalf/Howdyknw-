@@ -143,3 +143,28 @@ Los tests son sintéticos y no suponen que se haya probado sobre un televisor re
 ## Privacidad
 
 Los archivos .pcapng y .json generados pueden incluir metadatos privados. Mantén captures/ y reports/ fuera del control de versiones.
+
+## Módulo web con audio entre dispositivos
+
+Además del laboratorio de tráfico `howdyknw.py` / `dashboard.html`, el repositorio incluye una **web interactiva Node.js** en `public/`, con señalización WebSocket y audio WebRTC entre equipos autorizados. **Este módulo usa el micrófono del teléfono o del ordenador próximo a la TV, no el micrófono interno del televisor.** No permite extraer audio ambiental de una LG en reposo.
+
+Instalación desde el directorio raíz:
+
+~~~sh
+npm install
+npm start
+~~~
+
+Abre `http://localhost:3000` en el ordenador para probar emisor y receptor en pestañas separadas. Para conectar dos dispositivos distintos, publica el servidor Node.js bajo **HTTPS** (el permiso del micrófono no funciona en HTTP LAN normal) y comparte el código generado por la web. En redes con NAT estricto configura un TURN mediante `TURN_URLS`, `TURN_USERNAME` y `TURN_CREDENTIAL`. La web **no graba el audio** en el servidor y muestra el micrófono activo.
+
+El panel de conexiones acepta archivos JSON generados con `tv_monitor.py` y también los informes de tráfico saliente generados por `howdyknw.py analyze`. El script adicional `tv_monitor.py` captura metadatos en vivo o analiza un PCAP y genera `data/report.json` para su visualización automática en la web:
+
+~~~sh
+tshark -D
+python tv_monitor.py --interface 1 --tv-ip 192.168.1.30
+# Alternativa: python tv_monitor.py --pcap captures/on.pcapng --tv-ip 192.168.1.30
+~~~
+
+Sustituye la interfaz y la IP por las reales. **Estar conectado a la misma Wi-Fi no garantiza ver los paquetes del televisor**. Los informes únicamente contienen destinos y metadatos capturados, no contenido de comunicaciones cifradas.
+
+Pruebas del módulo web: `npm run check && npm test`. La prueba física de la TV y del audio entre dispositivos requiere esos equipos conectados.
