@@ -46,3 +46,7 @@ footer{color:#718598;border-top:1px solid #233443;font-size:11px;letter-spacing:
 button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outline-offset:3px}
 @media(max-width:760px){.capture-fields{grid-template-columns:1fr 1fr}.table-filter{padding:13px}.compare-panel{padding:18px}.network-actions .button{flex:initial}}
 @media(max-width:440px){.capture-fields{grid-template-columns:1fr}.table-filter input{width:100%}}
+
+.consent{display:flex;gap:11px;align-items:flex-start;color:#d2e4ed;font-size:12px;line-height:1.45;
+  background:#10262d;border:1px solid #2d5b59;border-radius:11px;padding:12px 13px;margin-top:17px}
+.consent input{width:18px;height:18px;flex-shrink:0;margin:1px 0 0;accent-color:#7be7d0}
