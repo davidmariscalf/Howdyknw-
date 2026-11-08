@@ -2,6 +2,7 @@
 (function(){
   var $=function(id){return document.getElementById(id);};
   var socket=null,stream=null,peers={},roomCode="",iceServers=[{urls:"stun:stun.l.google.com:19302"}];
+  var textSocket=null;
   var captureActive=false;
   function status(text,type){
     var el=$("status");el.textContent=text;el.className="status"+(type?" "+type:"");
@@ -103,10 +104,58 @@
       socket.onerror=function(){if(captureActive)stop("No se pudo conectar mediante WSS.");};
     }catch(e){stop("No se pudo abrir el micrófono: "+e.message);}
   }
+  // An editable text field asks for the TV's *real* input method.
+  // Some models offer voice dictation in the system keyboard, others do not.
+  $("focusText").addEventListener("click",function(){
+    $("dictationText").focus();
+    $("textStatus").textContent="Teclado solicitado. Si aparece el botón de micrófono, úsalo voluntariamente.";
+  });
+  function finishText(message){
+    var old=textSocket;
+    textSocket=null;
+    if(old)old.close();
+    $("shareText").disabled=false;
+    $("textStatus").textContent=message;
+  }
+  $("shareText").addEventListener("click",function(){
+    if(captureActive || socket){$("textStatus").textContent="Detén el audio antes de compartir texto.";return;}
+    if(textSocket){$("textStatus").textContent="El envío de texto ya está en curso.";return;}
+    if(!$("consent").checked){$("textStatus").textContent="Confirma el consentimiento de los presentes.";return;}
+    var value=$("dictationText").value.trim();
+    var room=$("room").value.trim().toUpperCase();
+    var endpoint=$("endpoint").value.trim();
+    if(!value||value.length>1000){$("textStatus").textContent="El texto debe tener entre 1 y 1000 caracteres.";return;}
+    if(!/^[A-Z0-9]{8,16}$/.test(room)){ $("textStatus").textContent="Código de sala inválido."; return; }
+    if(!/^https:\/\/[^/?#]+\/?$/.test(endpoint)){$("textStatus").textContent="Introduce la URL HTTPS del servidor, sin ruta.";return;}
+    $("shareText").disabled=true;
+    $("textStatus").textContent="Compartiendo únicamente el texto visible…";
+    var current=new WebSocket(endpoint.replace(/^https:/,"wss:"));
+    textSocket=current;
+    current.onopen=function(){
+      current.send(JSON.stringify({type:"join",role:"source",transport:"text",room:room}));
+    };
+    current.onmessage=function(ev){
+      var m;
+      try{m=JSON.parse(ev.data);}catch(e){return;}
+      if(m.type==="joined"){
+        current.send(JSON.stringify({type:"transcript",text:value}));
+      }else if(m.type==="transcript-sent"){
+        finishText("Texto entregado a "+m.listeners+" receptor(es). No se ha compartido audio.");
+      }else if(m.type==="error"){
+        finishText("Servidor: "+m.message);
+      }
+    };
+    current.onerror=function(){
+      if(textSocket===current)finishText("No se pudo conectar por WSS.");
+    };
+    current.onclose=function(){
+      if(textSocket===current)finishText("Se cerró la conexión antes de confirmar el envío.");
+    };
+  });
   $("start").addEventListener("click",function(){void start();});
   $("stop").addEventListener("click",function(){stop("Micrófono apagado manualmente.");});
-  document.addEventListener("visibilitychange",function(){if(document.hidden)stop("Micrófono apagado al ocultar la app.");});
-  window.addEventListener("pagehide",function(){stop("Micrófono apagado.");});
+  document.addEventListener("visibilitychange",function(){if(document.hidden){stop("Micrófono apagado al ocultar la app.");if(textSocket)finishText("Envío cancelado al ocultar la app.");}});
+  window.addEventListener("pagehide",function(){stop("Micrófono apagado.");if(textSocket)finishText("Envío detenido.");});
   window.addEventListener("tizenhwkey",function(e){if(e.keyName==="back")stop("Micrófono apagado.");});
   supports();
 })();
