@@ -39,6 +39,18 @@ test("HTTP entrega UI y responde API de salud y configuración",async()=>{
   assert.equal(health.status,"ok");
   const config=await (await fetch(origin+"/api/config")).json();
   assert.ok(config.iceServers.length>=1);
+  const reportUtils=await fetch(origin+"/report-utils.js");
+  assert.equal(reportUtils.status,200);
+  assert.match(await reportUtils.text(),/normalizeReport/);
+  const experimentModule=await fetch(origin+"/experiments.js");
+  assert.equal(experimentModule.status,200);
+  const sample=await fetch(origin+"/examples/encendida.json");
+  assert.equal(sample.status,200);
+  assert.match(sample.headers.get("content-type"),/application\/json/);
+  const sampleData=await sample.json();
+  assert.equal(sampleData.tv_ip,"192.168.1.50");
+  const css=await (await fetch(origin+"/style.css")).text();
+  assert.doesNotMatch(css,/fonts\.googleapis\.com/);
   const missing=await fetch(origin+"/no-existe");
   assert.equal(missing.status,404);
 });
