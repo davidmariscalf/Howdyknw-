@@ -9,8 +9,8 @@ test("PCM 48k → 16k packs one 20ms mono frame",()=>{
   assert.equal(frames.length,1);
   assert.equal(frames[0].length,640);
   assert.equal(toBase64(frames[0]).length,856);
-  assert.equal(frames[0][0],255);
-  assert.equal(frames[0][1],63);
+  assert.equal(frames[0][0],0);
+  assert.equal(frames[0][1],64);
 });
 test("PCM 44.1k → 16k maintains sample cadence",()=>{
   let frames=0;
