@@ -1,7 +1,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const ROOM_PATTERN=/^[A-Z0-9]{8,16}$/;
-const session={source:null,listener:null,stream:null,peers:new Map(),incoming:null,ice:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}};
+const session={source:null,listener:null,stream:null,relayContext:null,peers:new Map(),incoming:null,ice:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}};
 let pcmPlayer=null;
 let pcmSource=null;
 let nativeAudioMode=false;
@@ -107,6 +107,10 @@ async function acceptSignal(holder,data,ws,from){
 }
 function closeSource(){
   pcmSource?.stop();pcmSource=null;
+  if(session.relayContext){
+    void session.relayContext.close().catch(()=>{});
+    session.relayContext=null;
+  }
   $("relayMode").disabled=false;
   for(const entry of session.peers.values())entry.pc.close();
   session.peers.clear();
@@ -152,9 +156,23 @@ $("startSource").addEventListener("click",async()=>{
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
   if(!$("consentMic").checked)return setStatus("source","Confirma primero que la transmisión se realiza con conocimiento de los participantes.","error");
   if(!navigator.mediaDevices?.getUserMedia)return setStatus("source","El micrófono exige HTTPS o localhost.","error");
+  if(viaRelay){
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(!Audio)return setStatus("source","Este navegador no admite captura Web Audio PCM.","error");
+    try{
+      // Start audio context as part of the original user gesture.
+      session.relayContext=new Audio();
+      void session.relayContext.resume().catch(()=>{});
+    }catch(err){
+      return setStatus("source","No se pudo iniciar el motor de audio: "+err.message,"error");
+    }
+  }
   $("startSource").disabled=true;setStatus("source","Solicitando permiso del micrófono...");
   try{session.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true},video:false});}
-  catch(err){$("startSource").disabled=false;return setStatus("source","No se ha activado el micrófono: "+err.message,"error");}
+  catch(err){
+    if(session.relayContext){void session.relayContext.close().catch(()=>{});session.relayContext=null;}
+    $("startSource").disabled=false;return setStatus("source","No se ha activado el micrófono: "+err.message,"error");
+  }
   for(const track of session.stream.getAudioTracks()){track.addEventListener("ended",()=>{if(session.stream){closeSource();setStatus("source","El sistema detuvo el micrófono.","error");}},{once:true});}
   $("micNotice").hidden=false;$("stopSource").disabled=false;
   $("relayMode").disabled=true;
@@ -163,6 +181,7 @@ $("startSource").addEventListener("click",async()=>{
   setStatus("source","Micrófono encendido. Conectando...","live");
   ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",room,transport:viaRelay?"pcm16":"webrtc"}));
   ws.onmessage=async event=>{
+    if(session.source!==ws)return;
     try{
       const msg=JSON.parse(event.data);
       if(msg.type==="error"){closeSource();return setStatus("source",msg.message,"error");}
@@ -184,7 +203,7 @@ $("startSource").addEventListener("click",async()=>{
               if(relayListeners>0&&ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<128000){
                 ws.send(JSON.stringify({type:"audio-frame",pcm:HowdyPcmCapture.toBase64(bytes)}));
               }
-            });
+            },session.relayContext);
             await pcmSource.start();
             setStatus("source",relayListeners>0?"● Retransmitiendo audio por WSS. Sala: "+room:"● Micrófono activo; esperando receptor. Sin enviar muestras.","live");
           }catch(err){
