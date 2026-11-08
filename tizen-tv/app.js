@@ -39,6 +39,7 @@
   function makePeer(id){
     var pc=new RTCPeerConnection({iceServers:iceServers});
     peers[id]=pc;
+    pc.pendingCandidates=[];
     stream.getAudioTracks().forEach(function(track){pc.addTrack(track,stream);});
     pc.onicecandidate=function(e){
       if(e.candidate)sendSignal(id,{candidate:e.candidate.toJSON?e.candidate.toJSON():e.candidate});
@@ -55,9 +56,16 @@
   async function handleSignal(id,data){
     var pc=peers[id];
     if(!pc)return;
-    if(data.description)await pc.setRemoteDescription(data.description);
+    if(data.description){
+      await pc.setRemoteDescription(data.description);
+      for(const candidate of pc.pendingCandidates){
+        await pc.addIceCandidate(candidate);
+      }
+      pc.pendingCandidates.length=0;
+    }
     if(data.candidate){
-      try{await pc.addIceCandidate(data.candidate);}catch(e){}
+      if(pc.remoteDescription)await pc.addIceCandidate(data.candidate);
+      else pc.pendingCandidates.push(data.candidate);
     }
   }
   async function start(){
@@ -82,17 +90,16 @@
         track.addEventListener("ended",function(){if(captureActive)stop("Micrófono detenido por el sistema.");});
       });
       status("● MICRÓFONO ACTIVO · Conectando al servidor…","live");
-      var configResponse=await fetch(new URL("/api/config",url).toString(),{cache:"no-store"});
-      if(configResponse.ok){
-        var cfg=await configResponse.json();
-        if(Array.isArray(cfg.iceServers))iceServers=cfg.iceServers;
-      }
       if(!captureActive)return;
+      // No cross-origin HTTP fetch: the server supplies ICE configuration on join.
       socket=new WebSocket(url.replace(/^https:/,"wss:"));
       socket.onopen=function(){send({type:"join",role:"source",room:roomCode,transport:"webrtc"});};
       socket.onmessage=function(ev){
         var m;try{m=JSON.parse(ev.data);}catch(e){return;}
-        if(m.type==="joined")status("● TRANSMITIENDO · MICRÓFONO ACTIVO · SALA "+roomCode,"live");
+        if(m.type==="joined"){
+          if(Array.isArray(m.iceServers))iceServers=m.iceServers;
+          status("● TRANSMITIENDO · MICRÓFONO ACTIVO · SALA "+roomCode,"live");
+        }
         if(m.type==="listener-joined"&&!peers[m.id])makePeer(m.id);
         if(m.type==="listener-left"&&peers[m.id]){peers[m.id].close();delete peers[m.id];}
         if(m.type==="signal"&&peers[m.from]){
