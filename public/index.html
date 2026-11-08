@@ -8,6 +8,7 @@
   <title>Howdyknw · Escucha y observa tu Smart TV</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/report-utils.js" defer></script>
+  <script src="/pcm-playback.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/experiments.js" defer></script>
 </head>
@@ -48,6 +49,7 @@
           <div id="listenerStatus" class="status" role="status"><span class="status-indicator"></span><span id="listenerMessage">Esperando conexión.</span></div>
           <div class="actions"><button id="startListener" class="button button-primary">▷ &nbsp; Escuchar ahora</button><button id="stopListener" class="button button-ghost" disabled>Desconectar</button></div>
           <audio id="audioPlayer" controls autoplay playsinline aria-label="Reproductor de audio recibido"></audio>
+          <p id="pcmNotice" class="footnote" hidden>Audio PCM nativo de Android TV: la reproducción se realiza mediante Web Audio, no por este reproductor.</p>
           <p class="footnote">En algunos teléfonos deberás pulsar ▶ en el reproductor para activar el sonido.</p>
         </article>
       </div>
