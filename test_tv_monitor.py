@@ -2,7 +2,7 @@
 import unittest
 from collections import defaultdict
 
-from tv_monitor import FIELDS, make_report, parse_line
+from tv_monitor import FIELDS, TimeBounds, make_report, parse_line
 
 
 def make_fields(**values):
@@ -46,6 +46,18 @@ class TvMonitorTests(unittest.TestCase):
         self.assertEqual(report["destinations"][0]["ports"], [443])
         self.assertEqual(report["destinations"][0]["domains"], ["example.org"])
         self.assertEqual(report["seconds"], 180)
+
+    def test_large_capture_uses_constant_memory(self):
+        times = TimeBounds()
+        for timestamp in range(100000):
+            times.append(float(1794000000 + timestamp))
+        self.assertEqual(times.count, 100000)
+        self.assertEqual(times.first, 1794000000)
+        self.assertEqual(times.last, 1794099999)
+        report = make_report(self.tv, self.stats, self.dns, times, 0, True)
+        self.assertEqual(report["seconds"], 99999)
+        times.append(float("nan"))
+        self.assertEqual(times.count, 100000)
 
     def test_dns_aaaa_mapping(self):
         parse_line(make_fields(**{
