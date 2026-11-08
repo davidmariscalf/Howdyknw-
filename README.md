@@ -82,6 +82,30 @@ En Windows, si TShark no está en PATH, indica su ruta con la opción global, an
 python howdyknw.py --tshark "C:\Program Files\Wireshark\tshark.exe" analyze --tv-ip 192.168.1.30 --pcap captures/on.pcapng --out reports/on.json
 ~~~
 
+
+## Audio en directo entre dos dispositivos (micrófono externo)
+
+El repositorio también contiene una aplicación web de Node.js con WebRTC. Permite transmitir en directo el **micrófono del dispositivo emisor** a un receptor, con activación explícita y permiso del navegador. Esto **no equivale a escuchar el micrófono interno de LG**.
+
+Requiere Node.js 20 o superior:
+
+~~~sh
+npm install
+npm start
+~~~
+
+Abre http://localhost:3000 en el ordenador servidor. La interfaz contiene una pestaña de audio y otra de red. Para usar el micrófono de otro dispositivo, la página de origen debe cargarse en un contexto seguro (HTTPS o localhost), y tanto emisor como receptor deben acceder al mismo servicio y compartir el código de sala.
+
+El navegador pide permiso para usar el micrófono; no se activa de forma oculta. La transmisión no sustituye el diagnóstico de la televisión y no representa prueba de lo que una LG capta.
+
+Además, existe un monitor de red en tiempo real basado en TShark:
+
+~~~sh
+python tv_monitor.py --interface 1 --tv-ip 192.168.1.30 --duration 180 --output data/report.json
+~~~
+
+El servidor Node.js consulta ese informe para la pestaña de red; su formato es distinto del de howdyknw.py, utilizado por dashboard.html.
+
 ## Cómo probar el micrófono sin sacar conclusiones falsas
 
 1. Anota el **modelo exacto**, versión de webOS y si dispone de función de voz de campo lejano, «Hi LG» y/o micrófono en el Magic Remote.
