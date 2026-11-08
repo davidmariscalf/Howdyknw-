@@ -50,6 +50,11 @@
           <div class="actions"><button id="startListener" class="button button-primary">▷ &nbsp; Escuchar ahora</button><button id="stopListener" class="button button-ghost" disabled>Desconectar</button></div>
           <audio id="audioPlayer" controls autoplay playsinline aria-label="Reproductor de audio recibido"></audio>
           <p id="pcmNotice" class="footnote" hidden>Audio PCM nativo de Android TV: la reproducción se realiza mediante Web Audio, no por este reproductor.</p>
+          <div class="transcript-receiver">
+            <div class="transcript-heading"><strong>Texto de la televisión</strong><span>No es una grabación de audio</span></div>
+            <div id="transcriptLog" role="log" aria-live="polite" aria-relevant="additions text" class="transcript-log">Aquí aparecerá el texto compartido voluntariamente desde el teclado o reconocedor de la TV.</div>
+            <button id="clearTranscript" type="button" class="link-action">Borrar texto recibido</button>
+          </div>
           <p class="footnote">En algunos teléfonos deberás pulsar ▶ en el reproductor para activar el sonido.</p>
         </article>
       </div>
