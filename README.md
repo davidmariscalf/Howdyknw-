@@ -1,3 +1,29 @@
+
+## Aplicación nativa para Android TV / Google TV
+
+**Añadida:** android-tv/ incluye una app Android (APK) que usa AudioRecord para captar audio de un micrófono que el propio sistema Android ofrezca a la aplicación. No es una extracción del micrófono de la televisión si el sistema no lo expone. Requiere permiso RECORD_AUDIO, activación visible y transmisión en primer plano; se para al salir de la pantalla. No realiza grabación local.
+
+**APK de prueba:** GitHub Actions compila android-tv/app y publica el archivo howdyknw-android-tv-debug como artefacto descargable. Consulta:
+https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
+
+Uso:
+1. Arranca el servidor web de Howdyknw y accede mediante HTTPS (Tailscale Serve es una opción).
+2. Descarga la APK debug de la última compilación Android TV satisfactoria e instálala en tu televisión Android/Google TV con consentimiento y acceso al dispositivo.
+3. En el navegador receptor abre la pestaña Audio en directo, introduce una sala y pulsa Escuchar ahora.
+4. En la app Android TV introduce la URL **wss://** del servidor y el mismo código de sala.
+5. Inicia la captura en la pantalla de la TV y autoriza RECORD_AUDIO. Si AudioRecord tiene entrada válida, se enviará audio PCM16 en directo y el receptor lo reproducirá.
+6. Pulsa DETENER. La aplicación también corta la captura cuando pierde el primer plano.
+
+Para instalar la APK debug por ADB en un Android TV que permita depuración USB o por red:
+
+~~~sh
+adb install -r android-tv/app/build/outputs/apk/debug/app-debug.apk
+~~~
+
+El sistema de Android puede proporcionar una entrada de audio integrada, USB o similar. Un micrófono del mando reservado al asistente, una TV sin micrófono accesible o webOS/Tizen sin API de captura **no funcionan con este adaptador**. La aplicación web sigue siendo compatible con navegadores de otros dispositivos que admitan getUserMedia.
+
+Detalles: [android-tv/README.md](android-tv/README.md).
+
 # Howdyknw — TV Privacy Lab
 
 **Laboratorio de privacidad para analizar una Smart TV propia.**
