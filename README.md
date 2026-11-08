@@ -4,6 +4,18 @@ Proyecto multisoporte para estudiar el tráfico de red de televisores propios y 
 
 > **Límite técnico fundamental:** no existe un permiso universal para descargar audio del micrófono interno de cualquier TV. Llamar «teclado» a una aplicación no desbloquea un micrófono reservado por el fabricante. El modo teclado usa el método de entrada real del televisor y devuelve **texto, no audio**.
 
+## Novedades de la auditoría de noviembre de 2026
+
+- Sesiones remotas: detección y liberación de conexiones WebSocket inactivas.
+- Audio: **no se envían muestras PCM al servidor cuando no hay oyentes**; el origen muestra el contador de receptores.
+- Recepción: volumen regulable, estadísticas de tramas y prueba de conectividad HTTP/WebSocket sin activar micrófono.
+- Tizen: negociación ICE y conexión al servidor corregidas.
+- Capturas: lector PCAP incremental con uso de memoria más controlado.
+- Invitaciones: enlaces de sala disponibles antes de activar el micrófono y código en fragmento URL.
+- Pruebas ampliadas con integridad de interfaz, latidos WebSocket, seguridad de origen y regresiones de capturas vacías.
+
+El [informe de auditoría](docs/AUDIT_2026-11-09.md) distingue las pruebas automáticas de lo que **todavía requiere comprobarse en dispositivos físicos**.
+
 ## Tres maneras de utilizarlo
 
 | Plataforma | Audio en directo | Teclado/dictado del sistema | Estado |
@@ -49,7 +61,7 @@ Abre la URL HTTPS proporcionada en la TV y en el receptor. Usa el mismo código 
 
 El audio PCM16 de Android TV se transporta por WSS al servidor; no necesita WebRTC en el emisor. El modo web/Tizen utiliza WebRTC si está disponible.
 
-## Android TV / Google TV — APK 1.1
+## Android TV / Google TV — APK 1.2
 
 El código está en [android-tv/](android-tv/), con una compilación de APK debug por GitHub Actions:
 https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
