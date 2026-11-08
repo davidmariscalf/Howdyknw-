@@ -5,6 +5,15 @@ const session={source:null,listener:null,stream:null,peers:new Map(),incoming:nu
 let pcmPlayer=null;
 let pcmSource=null;
 let nativeAudioMode=false;
+const volumeControl=$("listenerVolume");
+function applyListenerVolume(){
+  const volume=Number(volumeControl.value)/100;
+  $("volumeValue").textContent=Math.round(volume*100)+" %";
+  $("audioPlayer").volume=volume;
+  pcmPlayer?.setVolume(volume);
+}
+volumeControl.addEventListener("input",applyListenerVolume);
+applyListenerVolume();
 function setNativeMode(active){
   nativeAudioMode=active;
   $("pcmNotice").hidden=!active;
@@ -104,7 +113,8 @@ function closeSource(){
   session.stream?.getTracks().forEach(t=>t.stop());session.stream=null;
   const ws=session.source;session.source=null;if(ws)ws.close();
   $("startSource").disabled=false;$("stopSource").disabled=true;$("copyRoom").disabled=true;
-  $("micNotice").hidden=true;setStatus("source","Micrófono apagado.");
+  $("micNotice").hidden=true;$("sourceListeners").textContent="Receptores conectados: 0";
+  setStatus("source","Micrófono apagado.");
 }
 function closeListener(){
   pcmPlayer?.stop();pcmPlayer=null;
@@ -113,6 +123,7 @@ function closeListener(){
   $("audioPlayer").srcObject=null;
   const ws=session.listener;session.listener=null;if(ws)ws.close();
   $("startListener").disabled=false;$("stopListener").disabled=true;
+  $("listenerMetrics").textContent="Audio recibido: sin datos todavía.";
   setStatus("listener","Esperando conexión.");
 }
 $("stopSource").addEventListener("click",closeSource);
@@ -154,7 +165,10 @@ $("startSource").addEventListener("click",async()=>{
     try{
       const msg=JSON.parse(event.data);
       if(msg.type==="error"){closeSource();return setStatus("source",msg.message,"error");}
+      if(msg.type==="listener-count")$("sourceListeners").textContent="Receptores conectados: "+msg.count;
       if(msg.type==="joined"){
+        if(Number.isInteger(msg.listenerCount))$("sourceListeners").textContent="Receptores conectados: "+msg.listenerCount;
+        if(Array.isArray(msg.iceServers))session.ice={iceServers:msg.iceServers};
         if(viaRelay){
           try{
             pcmSource=new HowdyPcmCapture.Capture(session.stream,bytes=>{
@@ -248,6 +262,7 @@ $("startListener").addEventListener("click",()=>{
   setNativeMode(false);
   try{
     pcmPlayer=new HowdyPcm.Player();
+    pcmPlayer.setVolume(Number(volumeControl.value)/100);
     void pcmPlayer.enable().catch(e=>setStatus("listener","Web Audio no disponible: "+e.message,"error"));
   }catch(e){setStatus("listener","El navegador no admite PCM: "+e.message,"error");}
   const ws=wsOpen();session.listener=ws;
@@ -269,12 +284,14 @@ $("startListener").addEventListener("click",()=>{
       if(msg.type==="transcript"&&msg.audioAvailable===false)showRemoteTranscript(msg.text);
       if(msg.type==="audio-frame"&&nativeAudioMode){
         if(pcmPlayer?.play(msg.pcm)){
-          if(pcmPlayer.frames===1)setStatus("listener","Escuchando el micrófono de la TV en directo (PCM).","live");
+          if(pcmPlayer.frames===1)setStatus("listener","Recibiendo audio PCM en directo.","live");
+          if(pcmPlayer.frames%25===0)$("listenerMetrics").textContent="Audio PCM recibido: "+pcmPlayer.frames+" tramas (20 ms cada una).";
         }else if(pcmPlayer?.context?.state==="suspended"){
           setStatus("listener","El navegador ha bloqueado el sonido: vuelve a pulsar Escuchar ahora.","error");
         }
       }
       if(msg.type==="source-offline"){
+        $("listenerMetrics").textContent="El emisor se ha desconectado.";
         setNativeMode(false);
         session.incoming?.pc.close();session.incoming=null;$("audioPlayer").srcObject=null;
         setStatus("listener","El dispositivo que transmite se ha desconectado.");
