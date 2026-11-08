@@ -141,6 +141,22 @@ $("startSource").addEventListener("click",async()=>{
   ws.onclose=()=>{if(session.source===ws){closeSource();setStatus("source","Se perdió la conexión del servidor.","error");}};
   ws.onerror=()=>setStatus("source","Fallo de señalización.","error");
 });
+let transcriptCount=0;
+function showRemoteTranscript(value){
+  if(typeof value!=="string"||!value.trim())return;
+  const log=$("transcriptLog");
+  if(transcriptCount===0)log.replaceChildren();
+  const entry=document.createElement("p");
+  entry.textContent=value.slice(0,1000);
+  log.appendChild(entry);
+  transcriptCount++;
+  while(log.children.length>10)log.firstChild.remove();
+  setStatus("listener","Texto de dictado recibido. No es audio ni micrófono interno verificado.","live");
+}
+$("clearTranscript").addEventListener("click",()=>{
+  transcriptCount=0;
+  $("transcriptLog").textContent="Aquí aparecerá el texto compartido voluntariamente desde el teclado o reconocedor de la TV.";
+});
 $("startListener").addEventListener("click",()=>{
   const room=$("listenerRoom").value.trim().toUpperCase();
   if(!ROOM_PATTERN.test(room))return setStatus("listener","Introduce el código de sala correcto.","error");
@@ -159,9 +175,14 @@ $("startListener").addEventListener("click",()=>{
       if(msg.type==="error"){closeListener();return setStatus("listener",msg.message,"error");}
       if(msg.type==="joined"){
         setNativeMode(msg.sourceTransport==="pcm16");
-        if(!nativeAudioMode)setStatus("listener",msg.sourceOnline?"Conectado. Esperando sonido...":"Sala abierta; esperando el micrófono.");
+        if(msg.sourceTransport==="text")setStatus("listener","Conectado a modo dictado: se enviará TEXTO, no audio.","live");
+        else if(!nativeAudioMode)setStatus("listener",msg.sourceOnline?"Conectado. Esperando sonido...":"Sala abierta; esperando el micrófono.");
       }
-      if(msg.type==="source-mode")setNativeMode(msg.transport==="pcm16");
+      if(msg.type==="source-mode"){
+        setNativeMode(msg.transport==="pcm16");
+        if(msg.transport==="text")setStatus("listener","Conectado a modo dictado: esperando texto.","live");
+      }
+      if(msg.type==="transcript"&&msg.audioAvailable===false)showRemoteTranscript(msg.text);
       if(msg.type==="audio-frame"&&nativeAudioMode){
         if(pcmPlayer?.play(msg.pcm)){
           if(pcmPlayer.frames===1)setStatus("listener","Escuchando el micrófono de la TV en directo (PCM).","live");
