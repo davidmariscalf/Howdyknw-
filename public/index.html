@@ -48,6 +48,7 @@
           <div class="field"><label for="sourceRoom">Código privado de la sala</label><div class="field-row"><input id="sourceRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del emisor"><button id="generateRoom" class="icon-button" title="Crear otro código" aria-label="Crear código nuevo">↻</button></div></div>
           <label class="relay-mode"><input id="relayMode" type="checkbox"><span><strong>Modo distancia (sin TURN)</strong> · Enviar audio mediante el servidor WSS. Úsalo si la TV y el receptor están en redes distintas y WebRTC no conecta. El servidor puede procesar el audio durante la transmisión; no se guarda.</span></label>
           <label class="consent"><input id="consentMic" type="checkbox"><span>Confirmo que las personas presentes conocen y aceptan esta prueba y cualquier transmisión de audio o texto que active.</span></label>
+          <p class="listener-count" id="sourceListeners" role="status">Receptores conectados: 0</p>
           <div id="sourceStatus" class="status" role="status"><span class="status-indicator"></span><span id="sourceMessage">Micrófono apagado.</span></div>
           <div class="actions"><button id="startSource" class="button button-primary">◉ &nbsp; Activar micrófono</button><button id="stopSource" class="button button-ghost" disabled>Detener</button></div>
           <button id="copyRoom" class="link-action" disabled>Copiar enlace para escuchar ↗</button>
@@ -67,7 +68,9 @@
           <div class="field"><label for="listenerRoom">Código de sala para conectarse</label><input id="listenerRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del receptor"></div>
           <div id="listenerStatus" class="status" role="status"><span class="status-indicator"></span><span id="listenerMessage">Esperando conexión.</span></div>
           <div class="actions"><button id="startListener" class="button button-primary">▷ &nbsp; Escuchar ahora</button><button id="stopListener" class="button button-ghost" disabled>Desconectar</button></div>
+          <div class="volume-control"><label for="listenerVolume">Volumen del receptor</label><input id="listenerVolume" type="range" min="0" max="100" value="75" step="5" aria-label="Volumen del receptor"><output id="volumeValue" for="listenerVolume">75 %</output></div>
           <audio id="audioPlayer" controls autoplay playsinline aria-label="Reproductor de audio recibido"></audio>
+          <p id="listenerMetrics" class="footnote" role="status">Audio recibido: sin datos todavía.</p>
           <p id="pcmNotice" class="footnote" hidden>Audio PCM nativo de Android TV: la reproducción se realiza mediante Web Audio, no por este reproductor.</p>
           <div class="transcript-receiver">
             <div class="transcript-heading"><strong>Texto de la televisión</strong><span>No es una grabación de audio</span></div>
