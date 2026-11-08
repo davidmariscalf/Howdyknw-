@@ -1,217 +1,107 @@
+# Howdyknw — TV Audio & Privacy Lab
 
-## Otras marcas: Samsung/Tizen y navegadores compatibles
+Proyecto multisoporte para estudiar el tráfico de red de televisores propios y **probar de forma visible y autorizada** las entradas de voz que cada plataforma realmente permite.
 
-Se ha añadido \`tizen-tv/\`, un proyecto web para Samsung Smart TV con Tizen Studio. Detecta la disponibilidad de la entrada de micrófono y WebRTC; cuando existen y el usuario activa el micrófono, transmite a la sala del servidor.
+> **Límite técnico fundamental:** no existe un permiso universal para descargar audio del micrófono interno de cualquier TV. Llamar «teclado» a una aplicación no desbloquea un micrófono reservado por el fabricante. El modo teclado usa el método de entrada real del televisor y devuelve **texto, no audio**.
 
-No hay paquete Tizen firmado ni validación física: cada TV y versión de Tizen puede negar el flujo de micrófono. Para instalar en un modelo Samsung concreto es necesario Tizen Studio y firma de desarrollador. Instrucciones: [tizen-tv/README.md](tizen-tv/README.md).
+## Tres maneras de utilizarlo
 
-La aplicación web del servidor también puede captar audio de cualquier navegador que realmente ofrezca \`getUserMedia\` y permiso para el micrófono, como ordenadores, móviles y algunos dispositivos TV. **No es compatible universalmente con el micrófono interno de cualquier televisor.**
+| Plataforma | Audio en directo | Teclado/dictado del sistema | Estado |
+|---|---|---|---|
+| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.1 compilada, hardware pendiente |
+| Samsung Tizen | getUserMedia/WebRTC si existen y están permitidos | Campo de texto, teclado Tizen y compartir texto manualmente | Código fuente; falta firma Tizen y prueba física |
+| Navegador en Smart TV / móvil / PC | getUserMedia/WebRTC cuando existe | Campo de texto y teclado del dispositivo (voz si existe) | Integrado en la web; depende del navegador |
 
-## Aplicación nativa para Android TV / Google TV
+No se permite lectura silenciosa del micrófono, ejecución oculta en standby ni acceso a audio del mando reservado al asistente. La opción de voz de Gboard puede usar un servicio de reconocimiento remoto del proveedor.
 
-**Añadida:** android-tv/ incluye una app Android (APK) que usa AudioRecord para captar audio de un micrófono que el propio sistema Android ofrezca a la aplicación. No es una extracción del micrófono de la televisión si el sistema no lo expone. Requiere permiso RECORD_AUDIO, activación visible y transmisión en primer plano; se para al salir de la pantalla. No realiza grabación local.
-
-**APK de prueba:** GitHub Actions compila android-tv/app y publica el archivo howdyknw-android-tv-debug como artefacto descargable. Consulta:
-https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
-
-Uso:
-1. Arranca el servidor web de Howdyknw y accede mediante HTTPS (Tailscale Serve es una opción).
-2. Descarga la APK debug de la última compilación Android TV satisfactoria e instálala en tu televisión Android/Google TV con consentimiento y acceso al dispositivo.
-3. En el navegador receptor abre la pestaña Audio en directo, introduce una sala y pulsa Escuchar ahora.
-4. En la app Android TV introduce la URL **wss://** del servidor y el mismo código de sala.
-5. Inicia la captura en la pantalla de la TV y autoriza RECORD_AUDIO. Si AudioRecord tiene entrada válida, se enviará audio PCM16 en directo y el receptor lo reproducirá.
-6. Pulsa DETENER. La aplicación también corta la captura cuando pierde el primer plano.
-
-Para instalar la APK debug por ADB en un Android TV que permita depuración USB o por red:
-
-~~~sh
-adb install -r android-tv/app/build/outputs/apk/debug/app-debug.apk
-~~~
-
-El sistema de Android puede proporcionar una entrada de audio integrada, USB o similar. Un micrófono del mando reservado al asistente, una TV sin micrófono accesible o webOS/Tizen sin API de captura **no funcionan con este adaptador**. La aplicación web sigue siendo compatible con navegadores de otros dispositivos que admitan getUserMedia.
-
-Detalles: [android-tv/README.md](android-tv/README.md).
-
-# Howdyknw — TV Privacy Lab
-
-**Laboratorio de privacidad para analizar una Smart TV propia.**
-
-## Qué funciona
-
-| Función | Estado |
-|---|---|
-| Captura de tráfico desde un router, gateway o puerto espejo | Implementado con TShark |
-| Análisis de IP, puertos, DNS, TLS SNI (si es visible) y bytes | Implementado |
-| Comparación de dos capturas: encendida vs. reposo | Implementado |
-| Panel web: demo, búsqueda, dos sesiones A/B y exportación CSV | Implementado |
-| Audio WebRTC desde micrófono voluntariamente activado en otro dispositivo | Implementado en código; pruebas físicas pendientes |
-| Escuchar el micrófono interno de una LG en standby | No disponible / no verificado |
-| Identificar exactamente el contenido cifrado que envía LG | No disponible solo con captura de red |
-
-La demostración de Gamers Nexus de 2026 utilizó una TV modificada/comprometida. No prueba que todos los televisores LG graben de forma continua en condiciones normales. LG niega la grabación ambiental continua. La API pública de webOS TV no da acceso general al flujo de audio bruto de los micrófonos desde aplicaciones corrientes.
-
-## Arquitectura
-
-~~~text
-                      TV LG (propia)
-                            |
-                       Red doméstica
-                            |
-         Router/gateway o puerto de red espejo
-                            |
-                  tshark -> .pcapng
-                            |
-            howdyknw.py analyze -> JSON
-                            |
-               dashboard.html (local)
-                            |
-           Destinos / DNS / SNI / comparación
-
-       Módulo de audio interno: pendiente
-       (requiere acceso auténtico y autorizado
-        al propio dispositivo, modelo por modelo)
-~~~
-
-## Requisitos
-
-- Python 3.10 o superior.
-- Wireshark con TShark instalado: https://www.wireshark.org/
-- Acceso a un punto de captura que vea el tráfico real del televisor.
-- Un dispositivo propio o permiso para probarlo.
-
-**Importante:** un ordenador cualquiera conectado a la misma Wi-Fi normalmente NO ve todas las conexiones unicast de la televisión. Un informe vacío no demuestra ausencia de tráfico.
-
-## Uso
-
-Identifica en los ajustes de red de tu TV su dirección IP. Ejemplo: 192.168.1.30. Identifica la interfaz correcta en la máquina de captura:
-
-~~~sh
-tshark -D
-~~~
-
-Ejemplo de captura con la TV encendida (sustituye la IP y la interfaz 1):
-
-~~~sh
-python howdyknw.py capture --tv-ip 192.168.1.30 --interface 1 --seconds 180 --out captures/on.pcapng
-python howdyknw.py analyze --tv-ip 192.168.1.30 --pcap captures/on.pcapng --label encendida --out reports/on.json
-~~~
-
-Pon la TV en standby con el mando, manteniéndola conectada a la electricidad y realiza otra captura del mismo tiempo:
-
-~~~sh
-python howdyknw.py capture --tv-ip 192.168.1.30 --interface 1 --seconds 180 --out captures/standby.pcapng
-python howdyknw.py analyze --tv-ip 192.168.1.30 --pcap captures/standby.pcapng --label standby --out reports/standby.json
-~~~
-
-Compara:
-
-~~~sh
-python howdyknw.py compare --before reports/on.json --after reports/standby.json --out reports/diff.json
-~~~
-
-Abre dashboard.html con tu navegador y carga reports/on.json y reports/standby.json. El panel procesa todo en el propio navegador, sin enviar archivos fuera.
-
-En Windows, si TShark no está en PATH, indica su ruta con la opción global, antes del comando:
-
-~~~powershell
-python howdyknw.py --tshark "C:\Program Files\Wireshark\tshark.exe" analyze --tv-ip 192.168.1.30 --pcap captures/on.pcapng --out reports/on.json
-~~~
-
-
-## Audio en directo entre dos dispositivos (micrófono externo)
-
-El repositorio también contiene una aplicación web de Node.js con WebRTC. Permite transmitir en directo el **micrófono del dispositivo emisor** a un receptor, con activación explícita y permiso del navegador. Esto **no equivale a escuchar el micrófono interno de LG**.
+## Inicio del servidor y receptor web
 
 Requiere Node.js 20 o superior:
 
 ~~~sh
+git clone https://github.com/davidmariscalf/Howdyknw-.git
+cd Howdyknw-
 npm install
 npm start
 ~~~
 
-Abre http://localhost:3000 en el ordenador servidor. La interfaz contiene una pestaña de audio y otra de red. Para usar el micrófono de otro dispositivo, la página de origen debe cargarse en un contexto seguro (HTTPS o localhost), y tanto emisor como receptor deben acceder al mismo servicio y compartir el código de sala.
+Abre **http://localhost:3000** desde el mismo ordenador.
 
-El navegador pide permiso para usar el micrófono; no se activa de forma oculta. La transmisión no sustituye el diagnóstico de la televisión y no representa prueba de lo que una LG capta.
+El servidor acepta conexiones WebSocket para WebRTC, audio PCM16 nativo y **mensajes de texto separados**. El receptor web distingue claramente la transcripción del audio. No almacena el contenido de audio ni los textos enviados como historial.
 
-Además, existe un monitor de red en tiempo real basado en TShark:
+### Acceso desde la TV
 
-~~~sh
-python tv_monitor.py --interface 1 --tv-ip 192.168.1.30 --duration 180 --output data/report.json
-~~~
-
-El servidor Node.js consulta ese informe para la pestaña de red; su formato es distinto del de howdyknw.py, utilizado por dashboard.html.
-
-## Cómo probar el micrófono sin sacar conclusiones falsas
-
-1. Anota el **modelo exacto**, versión de webOS y si dispone de función de voz de campo lejano, «Hi LG» y/o micrófono en el Magic Remote.
-2. Con las personas presentes informadas, utiliza frases de prueba ficticias (sin datos personales).
-3. Documenta las condiciones: voz deshabilitada, activada sin palabra de inicio, reconocimiento activado explícitamente y standby, cuando el modelo admita esas pruebas.
-4. Captura los mismos intervalos de tráfico. Si obtienes registros del **propio televisor** por medios autorizados, consérvalos localmente y compara sus marcas temporales.
-5. Etiqueta las observaciones por nivel de evidencia: tráfico visible, registro del dispositivo verificado, audio interno verificado, o no comprobado.
-
-El micrófono del teléfono o del ordenador NO equivale al de la TV. Tampoco una conexión HTTPS demuestra que se haya enviado audio. Encendido, pantalla apagada, standby y desconectado de electricidad son estados diferentes.
-
-## Interpretación de resultados
-
-- IP + puerto: destino visible de paquetes salientes.
-- SNI TLS: nombre de servidor disponible en ciertas conexiones; puede estar oculto.
-- Consultas DNS: nombres solicitados, no prueba de comunicación posterior con cada dominio.
-- Bytes: tamaño total de las tramas observadas, no bytes de voz.
-- Comparación: diferencia de destinos entre ventanas; no prueba causalidad ni contenido.
-- Si el contenido va cifrado, hace falta otra evidencia para saber qué envía.
-
-## Pruebas de software
-
-~~~sh
-python -m unittest -v
-~~~
-
-Los tests son sintéticos y no suponen que se haya probado sobre un televisor real. La captura necesita una instalación y topología de red adecuadas.
-
-## Fuentes
-
-- API webOS TV de cámara/micrófono: https://webostv.developer.lge.com/develop/references/camera
-- Limitaciones de API de audio en webOS TV: https://forum.webostv.developer.lge.com/t/how-to-implement-the-native-support-for-web-conferencing-utilising-lg-smart-tvs-camera-and-mic-device-capabilities/5265
-- Debate sobre audio del mando (2026): https://forum.webostv.developer.lge.com/t/how-to-access-microphone-input-and-voice-recognition-on-webos-tv/28117
-- Contexto y límites de la investigación: https://www.malwarebytes.com/blog/privacy/2026/09/lg-tv-flaws-could-let-attackers-listen-in-even-in-standby-mode
-
-## Privacidad
-
-Los archivos .pcapng y .json generados pueden incluir metadatos privados. Mantén captures/ y reports/ fuera del control de versiones.
-
-## Conectar dos dispositivos usando HTTPS
-
-La forma más sencilla de probarlo en tus propios equipos sin abrir un servidor al público es con Tailscale en ambos dispositivos y HTTPS habilitado en la tailnet. Con el servidor Node.js ya arrancado, en otro terminal ejecuta:
+El micrófono web requiere HTTPS o localhost. Puedes usar Tailscale en ambos dispositivos y exponer el servidor mediante:
 
 ~~~sh
 tailscale serve 3000
 ~~~
 
-Tailscale muestra una dirección HTTPS con terminación ts.net, a la que pueden acceder los dispositivos autorizados en esa misma tailnet. Copia esa URL y utilízala tanto en el emisor como en el receptor. Instrucciones oficiales: https://tailscale.com/docs/reference/tailscale-cli/serve
+Abre la URL HTTPS proporcionada en la TV y en el receptor. Usa el mismo código de sala. El dispositivo que transmite necesita permiso y consentimiento. Si una red no permite WebRTC directo, configura TURN con TURN_URLS, TURN_USERNAME y TURN_CREDENTIAL.
 
-El navegador necesita HTTPS o localhost para conceder el micrófono. Abrir una dirección HTTP privada de LAN normalmente no permite usarlo. Aunque WebRTC puede funcionar directamente, algunas redes necesitan TURN; el servidor lee TURN_URLS, TURN_USERNAME y TURN_CREDENTIAL del entorno si los configuras. En móviles, el sistema puede detener el micrófono al dejar la pestaña en segundo plano. El micrófono solo funciona después de confirmar el consentimiento y aceptar el permiso del navegador.
+El audio PCM16 de Android TV se transporta por WSS al servidor; no necesita WebRTC en el emisor. El modo web/Tizen utiliza WebRTC si está disponible.
 
-La aplicación usa STUN público por defecto para WebRTC; por ello, no es correcto decir que no contacta nunca servicios externos. El análisis y exportación de informes sí se procesan localmente y no llevan publicidad ni analítica.
+## Android TV / Google TV — APK 1.1
 
-## Importación de informes y pruebas A/B
+El código está en [android-tv/](android-tv/), con una compilación de APK debug por GitHub Actions:
+https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
 
-En Conexiones de TV:
+Instala la APK con Android Studio o ADB en un dispositivo de tu propiedad. En la app, introduce la dirección **wss://** del servidor y el código de sala.
 
-- Importar sesión A muestra un informe real generado con tv_monitor.py o howdyknw.py analyze.
-- Importar sesión B compara las IP de destino entre dos sesiones.
-- Filtrar permite buscar direcciones IP, nombres visibles y puertos.
-- CSV exporta el informe actual.
-- Ver ejemplo carga dos archivos de prueba inventados; están etiquetados expresamente como datos sintéticos.
+1. **Activar micrófono**: solicita RECORD_AUDIO, abre AudioRecord cuando Android lo permite y transmite PCM16 al receptor. Muestra el dispositivo de entrada utilizado y el nivel de señal. Se detiene al dejar la aplicación.
+2. **Abrir teclado de la TV**: da foco a un campo de entrada. El teclado del sistema puede ofrecer voz a texto, especialmente Gboard para Android TV.
+3. **Probar reconocimiento de voz**: invoca la actividad del reconocedor instalado, cuando existe. Solo devuelve texto y puede usar servidores del proveedor.
+4. **Compartir solo texto**: envía lo visible en el campo a la misma sala **solo después de pulsar el botón y confirmar consentimiento**. El receptor lo identifica como texto, no como audio.
 
-Para generar un informe compatible con la web desde un archivo pcapng:
+Ni el teclado ni el reconocedor entregan el audio bruto del mando a Howdyknw. Si no hay entrada PCM ni servicio de dictado, la aplicación debe indicar la incompatibilidad.
+
+Detalles técnicos y pasos: [android-tv/README.md](android-tv/README.md).
+
+## Samsung / Tizen
+
+El código está en [tizen-tv/](tizen-tv/). Puede usar audio WebRTC si el televisor expone y autoriza getUserMedia. Si no, incluye entrada de texto mediante el teclado del sistema; si este ofrece voz a texto, permite compartir manualmente la transcripción.
+
+Necesita Tizen Studio, certificado de desarrollador y firma para producir e instalar un archivo WGT. **No hay paquete WGT firmado ni prueba en una Samsung física.** Consulta [tizen-tv/README.md](tizen-tv/README.md).
+
+En LG webOS y otras marcas, el panel del navegador solo puede usar las APIs disponibles; el campo de texto no cambia los permisos del micrófono. No se promete acceso a un micrófono interno de webOS/Tizen bloqueado.
+
+## Analizador de tráfico de Smart TV
+
+Instala TShark (Wireshark) y captura desde un punto que realmente vea los paquetes de tu TV: router, gateway, punto de acceso propio o puerto espejo. Un portátil en el mismo Wi-Fi no tiene por qué ver su tráfico.
+
+Identifica la interfaz:
+
+~~~sh
+tshark -D
+~~~
+
+Monitor en vivo (cambia IP e interfaz por las reales):
+
+~~~sh
+python tv_monitor.py --interface 1 --tv-ip 192.168.1.50 --duration 180 --output data/report.json
+~~~
+
+Analiza una captura PCAP existente:
 
 ~~~sh
 python tv_monitor.py --pcap captures/on.pcapng --tv-ip 192.168.1.50 --output data/report.json
 ~~~
 
-El monitor actualizado admite IPv4 e IPv6, pero una ejecución filtra una dirección IP concreta. Una TV con IPv4 e IPv6 simultáneos necesita capturas separadas o un punto de monitorización que permita identificar todas las direcciones de esa TV. Para archivos PCAP, la duración indicada procede de las marcas temporales observadas, no del tiempo que tarda Python en analizar el archivo.
+También puedes capturar y comparar dos situaciones:
 
-## Validación
+~~~sh
+python howdyknw.py capture --tv-ip 192.168.1.50 --interface 1 --seconds 180 --out captures/on.pcapng
+python howdyknw.py analyze --tv-ip 192.168.1.50 --pcap captures/on.pcapng --label encendida --out reports/on.json
+python howdyknw.py capture --tv-ip 192.168.1.50 --interface 1 --seconds 180 --out captures/standby.pcapng
+python howdyknw.py analyze --tv-ip 192.168.1.50 --pcap captures/standby.pcapng --label standby --out reports/standby.json
+python howdyknw.py compare --before reports/on.json --after reports/standby.json --out reports/diff.json
+~~~
+
+Importa los JSON en el panel, filtra destinos y descarga CSV. Puedes usar también dashboard.html sin servidor. Los ejemplos incluidos son sintéticos y están identificados como tales.
+
+**Limitaciones:** DNS, IP, puertos, SNI cuando es visible y tamaño de tramas no revelan los datos exactos dentro de HTTPS ni demuestran que la TV haya transmitido conversaciones. IPv4 e IPv6 deben comprobarse ambos si el dispositivo los utiliza.
+
+## Pruebas y estado
 
 ~~~sh
 python -m unittest -v
@@ -219,4 +109,15 @@ npm run check
 npm test
 ~~~
 
-GitHub Actions ejecuta las pruebas. La validación de audio real entre dos dispositivos y la captura desde una TV física sigue requiriendo que ambos equipos estén disponibles. Enviar audio desde un móvil próximo a la tele no equivale a leer el micrófono interno de la TV.
+GitHub Actions ejecuta las pruebas de Python/Node y compila Android TV. **Que un APK compile no demuestra que funcione el audio del modelo específico de TV ni que el teclado de esa TV incluya dictado.** Antes de afirmar un resultado real, sigue el protocolo en [docs/HARDWARE_VALIDATION.md](docs/HARDWARE_VALIDATION.md).
+
+El repositorio ignora captures/, reports/, data/ y archivos PCAP: pueden contener metadatos personales.
+
+## Referencias
+
+- Android TV / teclado y voz a texto: https://developer.android.com/training/tv/get-started/onscreen-keyboard
+- Reconocimiento por Intent: https://developer.android.com/reference/android/speech/RecognizerIntent
+- AudioRecord: https://developer.android.com/reference/android/media/AudioRecord
+- Samsung Tizen: https://developer.samsung.com/smarttv/develop/api-references/samsung-product-api-references/microphone-api.html
+- LG webOS: https://webostv.developer.lge.com/develop/references/camera
+- Tailscale Serve: https://tailscale.com/docs/reference/tailscale-cli/serve
