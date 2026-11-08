@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "tv_ip": "192.168.1.50",
+  "updated_at": "2026-11-08T18:00:00Z",
+  "seconds": 180,
+  "destinations": [
+    {
+      "ip": "203.0.113.21",
+      "domains": [
+        "metrics.example"
+      ],
+      "sent_bytes": 18000,
+      "received_bytes": 24000,
+      "packets": 56,
+      "ports": [
+        443
+      ]
+    },
+    {
+      "ip": "198.51.100.45",
+      "domains": [
+        "updates.example"
+      ],
+      "sent_bytes": 34000,
+      "received_bytes": 250000,
+      "packets": 130,
+      "ports": [
+        443
+      ]
+    },
+    {
+      "ip": "192.168.1.1",
+      "domains": [],
+      "sent_bytes": 2500,
+      "received_bytes": 5000,
+      "packets": 20,
+      "ports": [
+        53
+      ]
+    }
+  ],
+  "note": "Datos de ejemplo inventados. No pertenecen a ninguna televisión real."
+}
