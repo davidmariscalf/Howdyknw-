@@ -363,6 +363,178 @@ public final class MainActivity extends Activity {
                 stopStreaming("El micrófono dejó de entregar audio o se cortó la conexión."));
     }
 
+
+    /** Focus an ordinary EditText; Android TV Gboard may offer its own voice-input key. */
+    private void showSystemKeyboard() {
+        if (socket != null || running.get()) {
+            stopStreaming("Micrófono PCM detenido antes de abrir el teclado.");
+        }
+        dictationInput.requestFocus();
+        InputMethodManager imm =
+                (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm == null) {
+            dictationStatus.setText("El sistema no expone un teclado utilizable.");
+            return;
+        }
+        boolean shown = imm.showSoftInput(dictationInput, InputMethodManager.SHOW_IMPLICIT);
+        dictationStatus.setText(shown
+                ? "Teclado del sistema solicitado. Pulsa el icono de micrófono si existe."
+                : "El teclado no se ha mostrado. Comprueba los ajustes del teclado de la TV.");
+    }
+
+    /** Ask the TV's installed recognition activity for words, never raw microphone bytes. */
+    private void launchSystemDictation() {
+        if (socket != null || running.get()) {
+            stopStreaming("Micrófono PCM detenido antes de usar dictado.");
+        }
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,
+                Locale.getDefault().toLanguageTag());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                "Prueba de dictado voluntaria de Howdyknw");
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        try {
+            startActivityForResult(intent, SPEECH_REQUEST);
+            dictationStatus.setText(
+                    "Reconocimiento solicitado. Puede procesar voz mediante un servicio externo.");
+        } catch (ActivityNotFoundException ex) {
+            dictationStatus.setText(
+                    "Esta TV no tiene instalada una actividad de reconocimiento de voz compatible.");
+        } catch (SecurityException ex) {
+            dictationStatus.setText(
+                    "Android o el fabricante han bloqueado la función de dictado.");
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != SPEECH_REQUEST) return;
+        if (resultCode != RESULT_OK || data == null) {
+            dictationStatus.setText("Dictado cancelado o no disponible. Nada compartido.");
+            return;
+        }
+        ArrayList<String> words = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+        if (words == null || words.isEmpty() || words.get(0) == null
+                || words.get(0).trim().isEmpty()) {
+            dictationStatus.setText("El reconocedor no ha devuelto texto.");
+            return;
+        }
+        String transcript = words.get(0).trim();
+        dictationInput.setText(transcript);
+        dictationStatus.setText("Texto recibido del reconocedor del sistema. No es audio."
+                + " No se ha enviado a Howdyknw.");
+    }
+
+    /** Share only the user-visible words, after another explicit tap. */
+    private void shareTranscript() {
+        if (running.get() || socket != null) {
+            dictationStatus.setText("Detén primero la transmisión de audio PCM.");
+            return;
+        }
+        if (!dictationConsent.isChecked()) {
+            dictationStatus.setText("Confirma el consentimiento antes de compartir el texto.");
+            return;
+        }
+        String transcript = dictationInput.getText().toString().trim();
+        if (transcript.isEmpty() || transcript.length() > 1000) {
+            dictationStatus.setText("Introduce entre 1 y 1000 caracteres antes de compartir.");
+            return;
+        }
+        String room = roomInput.getText().toString().trim().toUpperCase(Locale.ROOT);
+        if (!room.matches("[A-Z0-9]{8,16}")) {
+            dictationStatus.setText("El código de sala debe tener entre 8 y 16 caracteres.");
+            return;
+        }
+        String url = urlInput.getText().toString().trim();
+        try {
+            URI uri = URI.create(url);
+            if (!"wss".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
+                    || uri.getUserInfo() != null || uri.getQuery() != null
+                    || uri.getFragment() != null || (uri.getPath() != null
+                    && !uri.getPath().isEmpty() && !"/".equals(uri.getPath()))) {
+                dictationStatus.setText("Indica una URL WSS válida sin ruta ni parámetros.");
+                return;
+            }
+        } catch (IllegalArgumentException ex) {
+            dictationStatus.setText("La URL del servidor no es válida.");
+            return;
+        }
+        if (transcriptSocket != null) {
+            dictationStatus.setText("Ya se está compartiendo una transcripción.");
+            return;
+        }
+        shareTranscriptButton.setEnabled(false);
+        dictationStatus.setText("Conectando para compartir solo texto…");
+        Request request;
+        try {
+            request = new Request.Builder().url(url).build();
+        } catch (IllegalArgumentException ex) {
+            shareTranscriptButton.setEnabled(true);
+            dictationStatus.setText("Dirección WSS no válida.");
+            return;
+        }
+        transcriptSocket = client.newWebSocket(request, new WebSocketListener() {
+            @Override public void onOpen(WebSocket ws, Response response) {
+                try {
+                    JSONObject join = new JSONObject();
+                    join.put("type", "join");
+                    join.put("role", "source");
+                    join.put("transport", "text");
+                    join.put("room", room);
+                    ws.send(join.toString());
+                } catch (Exception ex) {
+                    runOnUiThread(() -> closeTranscript(
+                            "No se pudo entrar en la sala."));
+                }
+            }
+            @Override public void onMessage(WebSocket ws, String data) {
+                try {
+                    JSONObject response = new JSONObject(data);
+                    String type = response.optString("type");
+                    if ("joined".equals(type)) {
+                        JSONObject payload = new JSONObject();
+                        payload.put("type", "transcript");
+                        payload.put("text", transcript);
+                        ws.send(payload.toString());
+                    } else if ("transcript-sent".equals(type)) {
+                        int listeners = response.optInt("listeners", 0);
+                        runOnUiThread(() -> closeTranscript(
+                                "Texto compartido con " + listeners
+                                + " receptor(es). Esto no incluye audio."));
+                    } else if ("error".equals(type)) {
+                        runOnUiThread(() -> closeTranscript(
+                                "Servidor: " + response.optString("message", "Error")));
+                    }
+                } catch (Exception ex) {
+                    runOnUiThread(() -> closeTranscript(
+                            "Respuesta de texto inválida."));
+                }
+            }
+            @Override public void onFailure(WebSocket ws, Throwable error, Response response) {
+                runOnUiThread(() -> {
+                    if (transcriptSocket == ws) closeTranscript(
+                            "No se pudo compartir el texto: " + error.getMessage());
+                });
+            }
+            @Override public void onClosed(WebSocket ws, int code, String reason) {
+                runOnUiThread(() -> {
+                    if (transcriptSocket == ws) closeTranscript(
+                            "Se cerró la sesión de texto sin confirmación.");
+                });
+            }
+        });
+    }
+
+    private void closeTranscript(String message) {
+        WebSocket old = transcriptSocket;
+        transcriptSocket = null;
+        if (old != null) old.close(1000, "Text share ended");
+        shareTranscriptButton.setEnabled(true);
+        dictationStatus.setText(message);
+    }
+
     private void setStatus(String message, boolean streaming) {
         statusView.setText(message);
         statusView.setTextColor(streaming ? 0xFF8AF3CB : 0xFFFFCC9C);
@@ -388,6 +560,8 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         super.onPause();
+        if (transcriptSocket != null) closeTranscript(
+                "Envío detenido: aplicación fuera de primer plano.");
         // No foreground service: cannot continue listening with this Activity hidden.
         if (socket != null || running.get()) stopStreaming("Micrófono detenido: la aplicación perdió el primer plano.");
     }
