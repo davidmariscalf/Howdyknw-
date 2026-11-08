@@ -108,6 +108,33 @@ test("dictation mode sends only explicit text, marks audio unavailable and ackno
     }finally{source.close();}
   }finally{listener.close();}
 });
+test("servidor público limita receptores y rechaza mensajes JSON peligrosos",async()=>{
+  const room="REMOTETEST77";
+  const listeners=[];
+  const source=await client();
+  try{
+    const srcJoined=message(source,m=>m.type==="joined");
+    source.send(JSON.stringify({type:"join",role:"source",room}));
+    await srcJoined;
+    for(let i=0;i<4;i++){
+      const ws=await client();
+      listeners.push(ws);
+      const joined=message(ws,m=>m.type==="joined");
+      ws.send(JSON.stringify({type:"join",role:"listener",room}));
+      assert.equal((await joined).role,"listener");
+    }
+    const extraClient=await client();listeners.push(extraClient);
+    const rejected=message(extraClient,m=>m.type==="error");
+    extraClient.send(JSON.stringify({type:"join",role:"listener",room}));
+    assert.match((await rejected).message,/máximo 4/);
+    const malformed=message(source,m=>m.type==="error");
+    source.send("null");
+    assert.match((await malformed).message,/Mensaje no válido/);
+  }finally{
+    source.close();
+    for(const ws of listeners)ws.close();
+  }
+});
 test("WebSocket rechaza códigos inválidos y roles falsos",async()=>{
   const ws=await client();
   try{
