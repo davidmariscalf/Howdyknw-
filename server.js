@@ -13,6 +13,15 @@ const REMOTE_MODE = process.env.REMOTE_MODE === "1" || process.env.NODE_ENV === 
 const rooms = new Map();
 const MAX_LISTENERS = 4;
 const peers = new Map();
+function getIceServers(){
+  const servers=[{urls:"stun:stun.l.google.com:19302"}];
+  const urls=process.env.TURN_URLS?.split(",").map(s=>s.trim()).filter(Boolean);
+  if(urls?.length)servers.push({
+    urls,username:process.env.TURN_USERNAME||"",
+    credential:process.env.TURN_CREDENTIAL||""
+  });
+  return servers;
+}
 
 const requestHandler = async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -23,12 +32,7 @@ const requestHandler = async (req, res) => {
   let pathname;
   try {pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);} catch {res.writeHead(400);return res.end();}
   if (pathname === "/api/health") return json(res, 200, {status:"ok", service:"howdyknw"});
-  if (pathname === "/api/config") {
-    const iceServers = [{urls:"stun:stun.l.google.com:19302"}];
-    const urls = process.env.TURN_URLS?.split(",").map(s=>s.trim()).filter(Boolean);
-    if (urls?.length) iceServers.push({urls,username:process.env.TURN_USERNAME || "", credential:process.env.TURN_CREDENTIAL || ""});
-    return json(res,200,{iceServers});
-  }
+  if (pathname === "/api/config") return json(res,200,{iceServers:getIceServers()});
   if (pathname === "/api/report") {
     if (REMOTE_MODE && process.env.ALLOW_REMOTE_REPORT !== "1") return json(res,403,{error:"El informe local de la TV está deshabilitado en el servidor remoto"});
     try {
@@ -125,6 +129,8 @@ wss.on("connection",ws=>{
       peers.set(ws.id,ws);
       if(role==="source"){
         room.source=ws;
+        // Send join configuration BEFORE offers, important for TV runtimes.
+        send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:true,listenerCount:room.listeners.size,sourceTransport:ws.audioTransport,iceServers:getIceServers()});
         notifyListenerCount(room);
         for(const listener of room.listeners.values()){
           send(listener,{type:"source-mode",transport:ws.audioTransport});
@@ -132,10 +138,11 @@ wss.on("connection",ws=>{
         }
       }else{
         room.listeners.set(ws.id,ws);
+        send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,listenerCount:room.listeners.size,sourceTransport:room.source?.audioTransport||null,iceServers:getIceServers()});
         notifyListenerCount(room);
         if(room.source&&room.source.audioTransport==="webrtc")send(room.source,{type:"listener-joined",id:ws.id});
       }
-      return send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,listenerCount:room.listeners.size,sourceTransport:room.source?.audioTransport||null});
+      return;
     }
     // System TV keyboard / recognizer returns TEXT only. Never label it as microphone audio.
     // The user sends each transcript explicitly; no server-side saving or automatic dictation.
