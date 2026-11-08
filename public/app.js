@@ -157,6 +157,47 @@ $("clearTranscript").addEventListener("click",()=>{
   transcriptCount=0;
   $("transcriptLog").textContent="Aquí aparecerá el texto compartido voluntariamente desde el teclado o reconocedor de la TV.";
 });
+// Fallback for television browsers: use the OS-provided keyboard for optional
+// voice dictation. This path sees text only, never any microphone samples.
+let sourceTextSocket=null;
+function endSourceText(message){
+  const old=sourceTextSocket;sourceTextSocket=null;
+  if(old)old.close();
+  $("shareSourceText").disabled=false;
+  $("sourceTextStatus").textContent=message;
+}
+$("openSourceKeyboard").addEventListener("click",()=>{
+  if(session.stream)closeSource();
+  $("sourceText").focus();
+  $("sourceTextStatus").textContent="Teclado solicitado. El dictado depende del teclado que incluya esta TV.";
+});
+$("shareSourceText").addEventListener("click",()=>{
+  if(session.stream){$("sourceTextStatus").textContent="Detén el audio antes de compartir texto.";return;}
+  if(!$("consentMic").checked){$("sourceTextStatus").textContent="Confirma primero el consentimiento de los presentes.";return;}
+  const text=$("sourceText").value.trim();
+  const room=$("sourceRoom").value.trim().toUpperCase();
+  if(!ROOM_PATTERN.test(room)){$("sourceTextStatus").textContent="Código de sala no válido.";return;}
+  if(!text||text.length>1000){$("sourceTextStatus").textContent="Introduce entre 1 y 1000 caracteres.";return;}
+  if(sourceTextSocket){$("sourceTextStatus").textContent="El texto ya se está enviando.";return;}
+  let ws;
+  try{ws=wsOpen();}catch(e){$("sourceTextStatus").textContent="No se pudo crear la conexión de texto.";return;}
+  sourceTextSocket=ws;$("shareSourceText").disabled=true;
+  $("sourceTextStatus").textContent="Conectando para compartir SOLO TEXTO…";
+  ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",transport:"text",room}));
+  ws.onmessage=ev=>{
+    let message;
+    try{message=JSON.parse(ev.data);}catch{return;}
+    if(message.type==="joined")ws.send(JSON.stringify({type:"transcript",text}));
+    else if(message.type==="transcript-sent")endSourceText(
+      "Texto entregado a "+message.listeners+" receptor(es). Audio no disponible en este modo.");
+    else if(message.type==="error")endSourceText("Servidor: "+message.message);
+  };
+  ws.onerror=()=>{if(sourceTextSocket===ws)endSourceText("Error de conexión de texto.");};
+  ws.onclose=()=>{if(sourceTextSocket===ws)endSourceText("Conexión cerrada sin confirmación.");};
+});
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden&&sourceTextSocket)endSourceText("Envío detenido al ocultar la aplicación.");
+});
 $("startListener").addEventListener("click",()=>{
   const room=$("listenerRoom").value.trim().toUpperCase();
   if(!ROOM_PATTERN.test(room))return setStatus("listener","Introduce el código de sala correcto.","error");
