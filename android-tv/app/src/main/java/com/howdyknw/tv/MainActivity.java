@@ -3,6 +3,8 @@ package com.howdyknw.tv;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -11,11 +13,14 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.speech.RecognizerIntent;
+import android.view.inputmethod.InputMethodManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -24,6 +29,7 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +48,7 @@ import okhttp3.WebSocketListener;
  */
 public final class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 51;
+    private static final int SPEECH_REQUEST = 52;
     private static final int SAMPLE_RATE = 16000;
     private static final int FRAME_BYTES = 640; // 20 ms mono PCM16 at 16kHz
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -54,6 +61,11 @@ public final class MainActivity extends Activity {
     private TextView statusView;
     private TextView micView;
     private TextView levelView;
+    private TextView dictationStatus;
+    private EditText dictationInput;
+    private CheckBox dictationConsent;
+    private Button shareTranscriptButton;
+    private WebSocket transcriptSocket;
     private Button startButton;
     private Button stopButton;
     private boolean pendingStart = false;
@@ -127,6 +139,45 @@ public final class MainActivity extends Activity {
         levelView = label("Nivel de entrada: —", 14, 0xFF93B0C2);
         root.addView(levelView);
         root.addView(label("No hay grabación local ni ejecución en segundo plano. El audio del mando o del asistente puede estar restringido por el fabricante; la app no elude esos límites.", 14, 0xFF93B0C2));
+
+        TextView keyboardHeader = label("ALTERNATIVA: TECLADO Y DICTADO DEL SISTEMA", 23, 0xFF86E8D1);
+        keyboardHeader.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        root.addView(keyboardHeader);
+        root.addView(label("Si Android bloquea la captura PCM, el teclado oficial de la TV puede ofrecer un botón de micrófono para dictar. Esta vía devuelve TEXTO, no el audio del micrófono. Algunos modelos no incluyen dictado.", 15, Color.WHITE));
+
+        dictationInput = new EditText(this);
+        dictationInput.setSingleLine(false);
+        dictationInput.setMinLines(2);
+        dictationInput.setMaxLines(5);
+        dictationInput.setTextColor(Color.WHITE);
+        dictationInput.setHintTextColor(0xFF93B0C2);
+        dictationInput.setHint("Aquí aparecerá el texto dictado o escrito manualmente.");
+        dictationInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        root.addView(dictationInput);
+
+        Button systemKeyboard = new Button(this);
+        systemKeyboard.setText("ABRIR TECLADO DE LA TV (DICTADO SI EXISTE)");
+        root.addView(systemKeyboard);
+        Button voiceIntent = new Button(this);
+        voiceIntent.setText("PROBAR RECONOCIMIENTO DE VOZ DEL SISTEMA");
+        root.addView(voiceIntent);
+
+        dictationConsent = new CheckBox(this);
+        dictationConsent.setText("Confirmo que los presentes conocen y aceptan esta prueba y el envío del texto que seleccione compartir.");
+        dictationConsent.setTextColor(0xFFFFD7B3);
+        root.addView(dictationConsent);
+        shareTranscriptButton = new Button(this);
+        shareTranscriptButton.setText("COMPARTIR SOLO EL TEXTO CON MI SALA");
+        root.addView(shareTranscriptButton);
+
+        dictationStatus = label("Texto local: aún no se ha compartido nada.", 14, 0xFF93B0C2);
+        root.addView(dictationStatus);
+        root.addView(label("IMPORTANTE: el reconocedor de voz del fabricante puede usar servidores externos. Howdyknw no recibe el audio que usa el teclado; solo comparte el texto si pulsas el botón anterior.", 13, 0xFF93B0C2));
+
+        systemKeyboard.setOnClickListener(v -> showSystemKeyboard());
+        voiceIntent.setOnClickListener(v -> launchSystemDictation());
+        shareTranscriptButton.setOnClickListener(v -> shareTranscript());
 
         startButton.setOnClickListener(v -> requestStart());
         stopButton.setOnClickListener(v -> stopStreaming("Micrófono desactivado manualmente."));
