@@ -10,12 +10,14 @@ import argparse
 import csv
 import ipaddress
 import json
+import math
 import shutil
 import subprocess
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
-from io import StringIO
+from collections.abc import Iterable, Iterator
+import tempfile
 from pathlib import Path
 
 FIELDS = (
@@ -50,19 +52,36 @@ def tshark_exe(name: str) -> str:
     return result
 
 
-def read_capture(path: Path, executable: str) -> list[dict[str, str]]:
+def read_capture(path: Path, executable: str) -> Iterator[dict[str, str]]:
+    """Yield rows incrementally: avoid holding huge PCAP exports in RAM."""
     if not path.is_file():
         raise FileNotFoundError(path)
     cmd = [executable, "-r", str(path), "-T", "fields"]
     for field in FIELDS:
         cmd.extend(("-e", field))
     cmd.extend(("-E", "separator=,", "-E", "quote=d", "-E", "occurrence=f"))
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    rows = csv.reader(StringIO(result.stdout))
-    return [
-        dict(zip(FIELDS, (part.strip() for part in row)))
-        for row in rows if len(row) == len(FIELDS)
-    ]
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as errors:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                stderr=errors, text=True)
+        try:
+            if proc.stdout is None:
+                raise RuntimeError("No se pudo abrir la salida de TShark")
+            for row in csv.reader(proc.stdout):
+                if len(row) == len(FIELDS):
+                    yield dict(zip(FIELDS, (part.strip() for part in row)))
+            if proc.wait() != 0:
+                errors.seek(0)
+                raise RuntimeError("TShark terminó con error: " + errors.read()[:2000])
+        finally:
+            if proc.stdout:
+                proc.stdout.close()
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
 
 
 def _timestamp(seconds: float | None) -> str | None:
@@ -71,13 +90,14 @@ def _timestamp(seconds: float | None) -> str | None:
     return datetime.fromtimestamp(seconds, tz=timezone.utc).isoformat()
 
 
-def analyze(rows: list[dict[str, str]], tv_ip: str, label: str = "") -> dict:
+def analyze(rows: Iterable[dict[str, str]], tv_ip: str, label: str = "") -> dict:
     """Only attribute outgoing packets with source equal to tv_ip."""
     destinations = defaultdict(lambda: {
         "packets": 0, "bytes": 0, "tls_sni": set()
     })
     dns_queries: set[str] = set()
-    all_times: list[float] = []
+    first_outbound = None
+    last_outbound = None
     outbound = 0
     total_bytes = 0
     inbound = 0
@@ -92,7 +112,12 @@ def analyze(rows: list[dict[str, str]], tv_ip: str, label: str = "") -> dict:
         if src != tv_ip:
             continue
         try:
-            all_times.append(float(packet["frame.time_epoch"]))
+            timestamp = float(packet["frame.time_epoch"])
+            if math.isfinite(timestamp) and timestamp >= 0:
+                first_outbound = (timestamp if first_outbound is None
+                                  else min(first_outbound, timestamp))
+                last_outbound = (timestamp if last_outbound is None
+                                 else max(last_outbound, timestamp))
         except (KeyError, ValueError):
             pass
         try:
@@ -130,8 +155,8 @@ def analyze(rows: list[dict[str, str]], tv_ip: str, label: str = "") -> dict:
         "source": "tshark_capture",
         "tv_ip": tv_ip,
         "label": label,
-        "first_outbound_utc": _timestamp(min(all_times)) if all_times else None,
-        "last_outbound_utc": _timestamp(max(all_times)) if all_times else None,
+        "first_outbound_utc": _timestamp(first_outbound),
+        "last_outbound_utc": _timestamp(last_outbound),
         "outbound_packets": outbound,
         "inbound_packets": inbound,
         "outbound_frame_bytes": total_bytes,
