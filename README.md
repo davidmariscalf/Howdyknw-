@@ -9,7 +9,8 @@
 | Captura de tráfico desde un router, gateway o puerto espejo | Implementado con TShark |
 | Análisis de IP, puertos, DNS, TLS SNI (si es visible) y bytes | Implementado |
 | Comparación de dos capturas: encendida vs. reposo | Implementado |
-| Panel visual local, sin anuncios ni servidores externos | Implementado |
+| Panel web: demo, búsqueda, dos sesiones A/B y exportación CSV | Implementado |
+| Audio WebRTC desde micrófono voluntariamente activado en otro dispositivo | Implementado en código; pruebas físicas pendientes |
 | Escuchar el micrófono interno de una LG en standby | No disponible / no verificado |
 | Identificar exactamente el contenido cifrado que envía LG | No disponible solo con captura de red |
 
@@ -144,27 +145,44 @@ Los tests son sintéticos y no suponen que se haya probado sobre un televisor re
 
 Los archivos .pcapng y .json generados pueden incluir metadatos privados. Mantén captures/ y reports/ fuera del control de versiones.
 
-## Módulo web con audio entre dispositivos
+## Conectar dos dispositivos usando HTTPS
 
-Además del laboratorio de tráfico `howdyknw.py` / `dashboard.html`, el repositorio incluye una **web interactiva Node.js** en `public/`, con señalización WebSocket y audio WebRTC entre equipos autorizados. **Este módulo usa el micrófono del teléfono o del ordenador próximo a la TV, no el micrófono interno del televisor.** No permite extraer audio ambiental de una LG en reposo.
-
-Instalación desde el directorio raíz:
+La forma más sencilla de probarlo en tus propios equipos sin abrir un servidor al público es con Tailscale en ambos dispositivos y HTTPS habilitado en la tailnet. Con el servidor Node.js ya arrancado, en otro terminal ejecuta:
 
 ~~~sh
-npm install
-npm start
+tailscale serve 3000
 ~~~
 
-Abre `http://localhost:3000` en el ordenador para probar emisor y receptor en pestañas separadas. Para conectar dos dispositivos distintos, publica el servidor Node.js bajo **HTTPS** (el permiso del micrófono no funciona en HTTP LAN normal) y comparte el código generado por la web. En redes con NAT estricto configura un TURN mediante `TURN_URLS`, `TURN_USERNAME` y `TURN_CREDENTIAL`. La web **no graba el audio** en el servidor y muestra el micrófono activo.
+Tailscale muestra una dirección HTTPS con terminación ts.net, a la que pueden acceder los dispositivos autorizados en esa misma tailnet. Copia esa URL y utilízala tanto en el emisor como en el receptor. Instrucciones oficiales: https://tailscale.com/docs/reference/tailscale-cli/serve
 
-El panel de conexiones acepta archivos JSON generados con `tv_monitor.py` y también los informes de tráfico saliente generados por `howdyknw.py analyze`. El script adicional `tv_monitor.py` captura metadatos en vivo o analiza un PCAP y genera `data/report.json` para su visualización automática en la web:
+El navegador necesita HTTPS o localhost para conceder el micrófono. Abrir una dirección HTTP privada de LAN normalmente no permite usarlo. Aunque WebRTC puede funcionar directamente, algunas redes necesitan TURN; el servidor lee TURN_URLS, TURN_USERNAME y TURN_CREDENTIAL del entorno si los configuras. En móviles, el sistema puede detener el micrófono al dejar la pestaña en segundo plano. El micrófono solo funciona después de confirmar el consentimiento y aceptar el permiso del navegador.
+
+La aplicación usa STUN público por defecto para WebRTC; por ello, no es correcto decir que no contacta nunca servicios externos. El análisis y exportación de informes sí se procesan localmente y no llevan publicidad ni analítica.
+
+## Importación de informes y pruebas A/B
+
+En Conexiones de TV:
+
+- Importar sesión A muestra un informe real generado con tv_monitor.py o howdyknw.py analyze.
+- Importar sesión B compara las IP de destino entre dos sesiones.
+- Filtrar permite buscar direcciones IP, nombres visibles y puertos.
+- CSV exporta el informe actual.
+- Ver ejemplo carga dos archivos de prueba inventados; están etiquetados expresamente como datos sintéticos.
+
+Para generar un informe compatible con la web desde un archivo pcapng:
 
 ~~~sh
-tshark -D
-python tv_monitor.py --interface 1 --tv-ip 192.168.1.30
-# Alternativa: python tv_monitor.py --pcap captures/on.pcapng --tv-ip 192.168.1.30
+python tv_monitor.py --pcap captures/on.pcapng --tv-ip 192.168.1.50 --output data/report.json
 ~~~
 
-Sustituye la interfaz y la IP por las reales. **Estar conectado a la misma Wi-Fi no garantiza ver los paquetes del televisor**. Los informes únicamente contienen destinos y metadatos capturados, no contenido de comunicaciones cifradas.
+El monitor actualizado admite IPv4 e IPv6, pero una ejecución filtra una dirección IP concreta. Una TV con IPv4 e IPv6 simultáneos necesita capturas separadas o un punto de monitorización que permita identificar todas las direcciones de esa TV. Para archivos PCAP, la duración indicada procede de las marcas temporales observadas, no del tiempo que tarda Python en analizar el archivo.
 
-Pruebas del módulo web: `npm run check && npm test`. La prueba física de la TV y del audio entre dispositivos requiere esos equipos conectados.
+## Validación
+
+~~~sh
+python -m unittest -v
+npm run check
+npm test
+~~~
+
+GitHub Actions ejecuta las pruebas. La validación de audio real entre dos dispositivos y la captura desde una TV física sigue requiriendo que ambos equipos estén disponibles. Enviar audio desde un móvil próximo a la tele no equivale a leer el micrófono interno de la TV.
