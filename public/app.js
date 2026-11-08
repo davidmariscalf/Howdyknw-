@@ -148,6 +148,7 @@ browserRequirements();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
   const viaRelay=$("relayMode").checked;
+  let relayListeners=0;
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
   if(!$("consentMic").checked)return setStatus("source","Confirma primero que la transmisión se realiza con conocimiento de los participantes.","error");
   if(!navigator.mediaDevices?.getUserMedia)return setStatus("source","El micrófono exige HTTPS o localhost.","error");
@@ -165,19 +166,27 @@ $("startSource").addEventListener("click",async()=>{
     try{
       const msg=JSON.parse(event.data);
       if(msg.type==="error"){closeSource();return setStatus("source",msg.message,"error");}
-      if(msg.type==="listener-count")$("sourceListeners").textContent="Receptores conectados: "+msg.count;
+      if(msg.type==="listener-count"){
+        relayListeners=Math.max(0,Number(msg.count)||0);
+        $("sourceListeners").textContent="Receptores conectados: "+relayListeners;
+        if(viaRelay&&pcmSource)setStatus("source",relayListeners?
+          "● Transmitiendo audio a "+relayListeners+" receptor(es).":"● Micrófono activo; esperando receptor. No se envía audio.","live");
+      }
       if(msg.type==="joined"){
-        if(Number.isInteger(msg.listenerCount))$("sourceListeners").textContent="Receptores conectados: "+msg.listenerCount;
+        if(Number.isInteger(msg.listenerCount)){
+          relayListeners=msg.listenerCount;
+          $("sourceListeners").textContent="Receptores conectados: "+relayListeners;
+        }
         if(Array.isArray(msg.iceServers))session.ice={iceServers:msg.iceServers};
         if(viaRelay){
           try{
             pcmSource=new HowdyPcmCapture.Capture(session.stream,bytes=>{
-              if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<128000){
+              if(relayListeners>0&&ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<128000){
                 ws.send(JSON.stringify({type:"audio-frame",pcm:HowdyPcmCapture.toBase64(bytes)}));
               }
             });
             await pcmSource.start();
-            setStatus("source","● Retransmitiendo audio por servidor seguro. Sala: "+room,"live");
+            setStatus("source",relayListeners>0?"● Retransmitiendo audio por WSS. Sala: "+room:"● Micrófono activo; esperando receptor. Sin enviar muestras.","live");
           }catch(err){
             closeSource();
             return setStatus("source","El navegador no admite retransmisión PCM: "+err.message,"error");
