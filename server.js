@@ -66,7 +66,7 @@ function leave(ws){
 }
 wss.on("connection",ws=>{
   ws.id=crypto.randomUUID();
-  ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;
+  ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;ws.transcriptCount=0;
   ws.on("message",raw=>{
     let m;
     try{m=JSON.parse(raw.toString());}catch{return send(ws,{type:"error",message:"JSON inválido"});}
@@ -77,7 +77,7 @@ wss.on("connection",ws=>{
       const room=getRoom(roomCode);
       if(role==="source"&&room.source)return send(ws,{type:"error",message:"Esta sala ya tiene un micrófono activo"});
       ws.room=roomCode;ws.role=role;
-      ws.audioTransport=role==="source"&&m.transport==="pcm16"?"pcm16":"webrtc";
+      ws.audioTransport=role==="source"&&["pcm16","text"].includes(m.transport)?m.transport:"webrtc";
       peers.set(ws.id,ws);
       if(role==="source"){
         room.source=ws;
@@ -90,6 +90,25 @@ wss.on("connection",ws=>{
         if(room.source&&room.source.audioTransport==="webrtc")send(room.source,{type:"listener-joined",id:ws.id});
       }
       return send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,sourceTransport:room.source?.audioTransport||null});
+    }
+    // System TV keyboard / recognizer returns TEXT only. Never label it as microphone audio.
+    // The user sends each transcript explicitly; no server-side saving or automatic dictation.
+    if(m.type==="transcript"&&ws.role==="source"&&ws.room&&ws.audioTransport==="text"){
+      const room=rooms.get(ws.room);
+      if(!room||room.source!==ws||typeof m.text!=="string")return;
+      const cleaned=m.text.trim();
+      if(!cleaned||cleaned.length>1000||ws.transcriptCount++>3){
+        return send(ws,{type:"error",message:"Transcripción inválida o límite superado"});
+      }
+      let delivered=0;
+      for(const listener of room.listeners.values()){
+        if(listener.bufferedAmount<200000){
+          send(listener,{type:"transcript",text:cleaned,format:"text",audioAvailable:false});
+          delivered++;
+        }
+      }
+      send(ws,{type:"transcript-sent",listeners:delivered});
+      return;
     }
     // Native Android TV/Google TV: explicit mic capture, 16 kHz mono, 16-bit PCM.
     // Limit frames and listener backpressure to avoid turning this into a general file relay.
