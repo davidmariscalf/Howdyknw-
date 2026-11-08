@@ -7,12 +7,29 @@ from collections import defaultdict
 from datetime import datetime, timezone
 import ipaddress
 import json
+import math
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+
+class TimeBounds:
+    """Constant-memory observation range for long traffic captures."""
+
+    def __init__(self):
+        self.first = None
+        self.last = None
+        self.count = 0
+
+    def append(self, value: float):
+        if not math.isfinite(value) or value < 0:
+            return
+        self.first = value if self.first is None else min(self.first, value)
+        self.last = value if self.last is None else max(self.last, value)
+        self.count += 1
+
 
 FIELDS = (
     "frame.time_epoch", "ip.src", "ip.dst", "ipv6.src", "ipv6.dst",
@@ -32,7 +49,9 @@ def parse_line(raw: str, tv: str, stats: dict, dns_records: dict, times: list) -
     if source != tv and dest != tv:
         return False
     try:
-        times.append(float(timestamp))
+        value = float(timestamp)
+        if math.isfinite(value) and value >= 0:
+            times.append(value)
     except ValueError:
         pass
     remote = dest if source == tv else source
@@ -78,8 +97,11 @@ def make_report(tv: str, stats: dict, dns_records: dict, times: list,
     destinations.sort(
         key=lambda d: d["sent_bytes"] + d["received_bytes"], reverse=True
     )
-    first = min(times) if times else None
-    last = max(times) if times else None
+    if isinstance(times, TimeBounds):
+        first, last = times.first, times.last
+    else:
+        first = min(times) if times else None
+        last = max(times) if times else None
     seconds = max(0, last - first) if from_pcap and times else elapsed
     return {
         "schema_version": 1,
@@ -147,7 +169,7 @@ def main(argv=None) -> int:
         "domains": set(), "ports": set()
     })
     dns_records = defaultdict(set)
-    times: list[float] = []
+    times = TimeBounds()
     started = time.monotonic()
     last_saved = started
     output = Path(args.output)
