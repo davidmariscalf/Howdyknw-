@@ -85,3 +85,35 @@ test("WebSocket rechaza códigos inválidos y roles falsos",async()=>{
     assert.match((await m).message,/no válido/);
   }finally{ws.close();}
 });
+
+test("Android TV microphone sender relays only valid PCM16 frames inside its room",async()=>{
+  const source=await client();
+  const listener=await client();
+  const other=await client();
+  try{
+    const sourceJoined=message(source,m=>m.type==="joined");
+    source.send(JSON.stringify({type:"join",role:"source",transport:"pcm16",room:"TVAUDIO14"}));
+    assert.equal((await sourceJoined).sourceTransport,"pcm16");
+    const listenerJoined=message(listener,m=>m.type==="joined");
+    listener.send(JSON.stringify({type:"join",role:"listener",room:"TVAUDIO14"}));
+    assert.equal((await listenerJoined).sourceTransport,"pcm16");
+    const otherJoined=message(other,m=>m.type==="joined");
+    other.send(JSON.stringify({type:"join",role:"listener",room:"OTHERAUD14"}));
+    await otherJoined;
+    const pcm=Buffer.alloc(640).toString("base64");
+    const delivered=message(listener,m=>m.type==="audio-frame");
+    let leaked=false;
+    other.on("message",raw=>{try{if(JSON.parse(raw.toString()).type==="audio-frame")leaked=true;}catch{}});
+    source.send(JSON.stringify({type:"audio-frame",pcm}));
+    assert.equal((await delivered).pcm,pcm);
+    // Wrong-sized frames must not be broadcast.
+    let invalidDelivered=false;
+    const spy=raw=>{try{if(JSON.parse(raw.toString()).type==="audio-frame")invalidDelivered=true;}catch{}};
+    listener.on("message",spy);
+    source.send(JSON.stringify({type:"audio-frame",pcm:Buffer.alloc(3).toString("base64")}));
+    await new Promise(resolve=>setTimeout(resolve,120));
+    listener.off("message",spy);
+    assert.equal(invalidDelivered,false);
+    assert.equal(leaked,false);
+  }finally{source.terminate();listener.terminate();other.terminate();}
+});
