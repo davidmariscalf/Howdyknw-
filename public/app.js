@@ -23,6 +23,28 @@ function browserRequirements(){
     (!ws?"WebSocket no disponible. ":"Señalización disponible.");
   el.classList.toggle("unsupported",!secure||!mic||!rtc||!ws);
 }
+function updateRemoteAccessInfo(){
+  const hostname=location.hostname;
+  const local=/^(localhost|127\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2\\d|3[01])\\.|\\[?::1\\]?)$/i.test(hostname) ||
+    hostname.endsWith(".local");
+  const secure=location.protocol==="https:";
+  const publicUrl=secure&&!local;
+  const wssUrl=(secure?"wss://":"ws://")+location.host+"/";
+  $("remoteServerAddress").textContent=wssUrl;
+  $("remoteAccessStatus").textContent=publicUrl?
+    "Dirección HTTPS configurada: puedes utilizarla desde otras redes si el alojamiento es públicamente accesible.":
+    "Servidor local: para usar otra red, publica esta app en una URL HTTPS o usa una red privada con Tailscale.";
+}
+$("copyRemoteAddress").addEventListener("click",async()=>{
+  const url=$("remoteServerAddress").textContent;
+  try{
+    await navigator.clipboard.writeText(url);
+    $("copyRemoteAddress").textContent="Dirección copiada ✓";
+  }catch{
+    $("copyRemoteAddress").textContent="Selecciona y copia la dirección";
+  }
+});
+updateRemoteAccessInfo();
 const tabs=document.querySelectorAll(".tab");
 const panes={audio:$("pane-audio"),network:$("pane-network")};
 function showTab(name){
