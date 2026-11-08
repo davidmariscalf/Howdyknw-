@@ -32,6 +32,7 @@ jobs:
           node --check public/report-utils.js
           node --check public/experiments.js
           node --check public/pcm-playback.js
+          node --check public/pcm-capture.js
           node --check tizen-tv/app.js
           node --check public/pcm-playback.js
           node --check tizen-tv/app.js
