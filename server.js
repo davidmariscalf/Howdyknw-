@@ -9,7 +9,7 @@ const { WebSocketServer, WebSocket } = require("ws");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const REPORT_FILE = process.env.TV_REPORT_FILE || path.join(__dirname, "data", "report.json");
 const MIME = {".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"application/javascript; charset=utf-8",".svg":"image/svg+xml",".json":"application/json; charset=utf-8"};
-const REMOTE_MODE = process.env.REMOTE_MODE === "1" || Boolean(process.env.RAILWAY_ENVIRONMENT);
+const REMOTE_MODE = process.env.REMOTE_MODE === "1" || process.env.NODE_ENV === "production" || Boolean(process.env.RAILWAY_ENVIRONMENT);
 const rooms = new Map();
 const MAX_LISTENERS = 4;
 const peers = new Map();
@@ -73,10 +73,15 @@ function leave(ws){
 wss.on("connection",ws=>{
   if (wss.clients.size > 80) {ws.close(1013,"Servidor lleno");return;}
   ws.id=crypto.randomUUID();
+  ws.messageWindow=Date.now();ws.messageCount=0;
   ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;ws.transcriptCount=0;
   ws.on("message",raw=>{
+    const now=Date.now();
+    if(now-ws.messageWindow>1000){ws.messageWindow=now;ws.messageCount=0;}
+    if(++ws.messageCount>100){ws.close(1008,"Frecuencia de mensajes excesiva");return;}
     let m;
     try{m=JSON.parse(raw.toString());}catch{return send(ws,{type:"error",message:"JSON inválido"});}
+    if (!m || typeof m !== "object" || Array.isArray(m)) return send(ws,{type:"error",message:"Mensaje no válido"});
     if(m.type==="join"&&!ws.room){
       const roomCode=String(m.room||"").toUpperCase().trim();
       const role=m.role;
