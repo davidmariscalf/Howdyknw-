@@ -1,4 +1,12 @@
 
+## Otras marcas: Samsung/Tizen y navegadores compatibles
+
+Se ha añadido \`tizen-tv/\`, un proyecto web para Samsung Smart TV con Tizen Studio. Detecta la disponibilidad de la entrada de micrófono y WebRTC; cuando existen y el usuario activa el micrófono, transmite a la sala del servidor.
+
+No hay paquete Tizen firmado ni validación física: cada TV y versión de Tizen puede negar el flujo de micrófono. Para instalar en un modelo Samsung concreto es necesario Tizen Studio y firma de desarrollador. Instrucciones: [tizen-tv/README.md](tizen-tv/README.md).
+
+La aplicación web del servidor también puede captar audio de cualquier navegador que realmente ofrezca \`getUserMedia\` y permiso para el micrófono, como ordenadores, móviles y algunos dispositivos TV. **No es compatible universalmente con el micrófono interno de cualquier televisor.**
+
 ## Aplicación nativa para Android TV / Google TV
 
 **Añadida:** android-tv/ incluye una app Android (APK) que usa AudioRecord para captar audio de un micrófono que el propio sistema Android ofrezca a la aplicación. No es una extracción del micrófono de la televisión si el sistema no lo expone. Requiere permiso RECORD_AUDIO, activación visible y transmisión en primer plano; se para al salir de la pantalla. No realiza grabación local.
