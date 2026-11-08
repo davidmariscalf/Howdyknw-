@@ -3,4 +3,11 @@ data/
 .env
 .DS_Store
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+captures/
+reports/
+*.pcap
+*.pcapng
