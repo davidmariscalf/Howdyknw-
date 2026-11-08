@@ -29,6 +29,7 @@
   }
   function stop(message){
     captureActive=false;
+    $("listenerCount").textContent="Receptores conectados: 0";
     closePeers();
     if(stream)stream.getTracks().forEach(function(track){track.stop();});
     stream=null;
@@ -100,6 +101,7 @@
           if(Array.isArray(m.iceServers))iceServers=m.iceServers;
           status("● TRANSMITIENDO · MICRÓFONO ACTIVO · SALA "+roomCode,"live");
         }
+        if(m.type==="listener-count")$("listenerCount").textContent="Receptores conectados: "+m.count;
         if(m.type==="listener-joined"&&!peers[m.id])makePeer(m.id);
         if(m.type==="listener-left"&&peers[m.id]){peers[m.id].close();delete peers[m.id];}
         if(m.type==="signal"&&peers[m.from]){
