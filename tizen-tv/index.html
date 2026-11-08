@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Howdyknw TV Audio · Tizen</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<main>
+<header>
+  <p class="eyebrow">HOWDYKNW · SAMSUNG TIZEN</p>
+  <h1>Transmisión de micrófono</h1>
+  <p>Solo si tu Samsung permite abrir una entrada de audio desde aplicaciones. Requiere activación visible y permiso.</p>
+</header>
+<section class="card">
+  <label for="endpoint">Servidor HTTPS de Howdyknw</label>
+  <input id="endpoint" placeholder="https://equipo.ts.net/" value="https://" autocomplete="off">
+  <label for="room">Código de sala</label>
+  <input id="room" placeholder="8–16 caracteres" maxlength="16" autocomplete="off">
+  <label class="consent"><input type="checkbox" id="consent">
+    <span>Confirmo que todas las personas presentes conocen y aceptan la transmisión.</span></label>
+  <div class="buttons">
+    <button id="start" type="button">ACTIVAR MICRÓFONO</button>
+    <button id="stop" type="button" disabled>DETENER</button>
+  </div>
+  <p class="status" id="status" role="status">INACTIVO · MICRÓFONO APAGADO</p>
+  <p id="support" class="support">Analizando capacidades…</p>
+</section>
+<footer>Al cerrar esta app, el micrófono se apaga. No graba ni envía audio sin una acción explícita.</footer>
+</main>
+</body>
+</html>

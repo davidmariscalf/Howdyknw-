@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+    id="https://howdyknw.example/tv" version="1.0.0" viewmodes="maximized">
+    <name>Howdyknw TV Audio</name>
+    <description>Visible authorized microphone streaming on compatible Samsung Tizen TVs</description>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/microphone" required="false"/>
+    <tizen:profile name="tv"/>
+    <tizen:application id="hwdynwztv1.Howdyknw" package="hwdynwztv1" required_version="5.0"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/mediacapture"/>
+    <access origin="*" subdomains="true"/>
+</widget>
