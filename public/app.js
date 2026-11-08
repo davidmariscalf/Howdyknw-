@@ -143,19 +143,25 @@ $("startListener").addEventListener("click",()=>{
 function bytes(n){if(!Number.isFinite(n))return "—";const units=["B","KB","MB","GB","TB"];let k=0;while(n>=1024&&k<units.length-1){n/=1024;k++;}return n.toFixed(k?1:0)+" "+units[k];}
 function renderReport(data,kind){
   if(!data||!Array.isArray(data.destinations))throw new Error("Formato JSON inválido: falta destinations.");
-  const items=data.destinations;
+  const legacy=data.source==="tshark_capture";
+  const items=data.destinations.map(item=>({
+    ...item,
+    domains:Array.isArray(item.domains)?item.domains:(Array.isArray(item.tls_sni)?item.tls_sni:[]),
+    sent_bytes:Number(item.sent_bytes??item.bytes??0),
+    received_bytes:legacy?null:Number(item.received_bytes??0)
+  }));
   $("metricDestinations").textContent=String(items.length);
   $("metricSent").textContent=bytes(items.reduce((sum,i)=>sum+(Number(i.sent_bytes)||0),0));
-  $("metricReceived").textContent=bytes(items.reduce((sum,i)=>sum+(Number(i.received_bytes)||0),0));
+  $("metricReceived").textContent=legacy?"No medido":bytes(items.reduce((sum,i)=>sum+(Number(i.received_bytes)||0),0));
   $("metricPackets").textContent=items.reduce((sum,i)=>sum+(Number(i.packets)||0),0).toLocaleString("es-ES");
-  const tv=String(data.tv_ip||"no indicada");const t=data.updated_at?new Date(data.updated_at).toLocaleString("es-ES"):"sin fecha";
-  $("networkStatus").textContent=(kind==="import"?"Archivo importado":"Informe del servidor")+" · TV "+tv+" · "+t;
+  const tv=String(data.tv_ip||"no indicada");const t=data.updated_at?new Date(data.updated_at).toLocaleString("es-ES"):(data.last_outbound_utc||"sin fecha");
+  $("networkStatus").textContent=(kind==="import"?"Archivo importado":"Informe del servidor")+" · TV "+tv+" · "+t+(legacy?" · solo tráfico saliente":"");
   const body=$("destinationRows");body.replaceChildren();
   const ordered=[...items].sort((a,b)=>((b.sent_bytes||0)+(b.received_bytes||0))-((a.sent_bytes||0)+(a.received_bytes||0)));
   for(const i of ordered.slice(0,300)){
     const tr=document.createElement("tr");
     for(const val of [i.ip||"—",Array.isArray(i.domains)?i.domains.join(", ")||"Desconocido":"Desconocido",
-      bytes(Number(i.sent_bytes)||0),bytes(Number(i.received_bytes)||0),Number(i.packets||0).toLocaleString("es-ES")]){
+      bytes(Number(i.sent_bytes)||0),legacy?"No medido":bytes(Number(i.received_bytes)||0),Number(i.packets||0).toLocaleString("es-ES")]){
       const td=document.createElement("td");td.textContent=val;tr.appendChild(td);
     }
     body.appendChild(tr);
