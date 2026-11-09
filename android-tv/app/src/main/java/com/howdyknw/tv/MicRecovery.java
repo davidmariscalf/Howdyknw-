@@ -16,19 +16,21 @@ final class MicRecovery {
         final AudioRecord recorder;
         final String routeLabel;
         final String error;
+        final int sourceIndex;
 
-        private Result(AudioRecord recorder, String routeLabel, String error) {
+        private Result(AudioRecord recorder, String routeLabel, String error, int sourceIndex) {
             this.recorder = recorder;
             this.routeLabel = routeLabel;
             this.error = error;
+            this.sourceIndex = sourceIndex;
         }
 
-        static Result success(AudioRecord recorder, String label) {
-            return new Result(recorder, label, null);
+        static Result success(AudioRecord recorder, String label, int index) {
+            return new Result(recorder, label, null, index);
         }
 
         static Result failure(String error) {
-            return new Result(null, null, error);
+            return new Result(null, null, error, -1);
         }
     }
 
@@ -39,7 +41,7 @@ final class MicRecovery {
         return "ORIGEN " + source;
     }
 
-    static Result open(int sampleRate, int frameBytes) {
+    static Result open(int sampleRate, int frameBytes, int sourcePreference) {
         final int min = AudioRecord.getMinBufferSize(
                 sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         if (min <= 0) {
@@ -55,7 +57,9 @@ final class MicRecovery {
                 MediaRecorder.AudioSource.DEFAULT
         };
         StringBuilder failures = new StringBuilder();
-        for (int source : sources) {
+        for (int attempt = 0; attempt < sources.length; attempt++) {
+            int index = Math.floorMod(sourcePreference + attempt, sources.length);
+            int source = sources[index];
             AudioRecord candidate = null;
             try {
                 candidate = new AudioRecord(
@@ -64,7 +68,7 @@ final class MicRecovery {
                 if (candidate.getState() == AudioRecord.STATE_INITIALIZED) {
                     candidate.startRecording();
                     if (candidate.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-                        return Result.success(candidate, nameFor(source));
+                        return Result.success(candidate, nameFor(source), index);
                     }
                 }
                 if (failures.length() > 0) failures.append("; ");
