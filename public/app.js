@@ -7,11 +7,16 @@ let pcmSource=null;
 let nativeAudioMode=false;
 let listenerKeyPromise=null;
 let remoteRequiresE2EE=false;
-$("sourceSecret").value=HowdyE2EE.makeSecret();
+try{$("sourceSecret").value=HowdyE2EE.makeSecret();}
+catch{$("sourceSecret").value="";}
 $("newAudioKey").addEventListener("click",()=>{
   if(session.stream)return;
-  $("sourceSecret").value=HowdyE2EE.makeSecret();
-  setStatus("source","Clave de audio nueva. Compártela únicamente con el receptor.");
+  try{
+    $("sourceSecret").value=HowdyE2EE.makeSecret();
+    setStatus("source","Clave de audio nueva. Compártela únicamente con el receptor.");
+  }catch{
+    setStatus("source","La generación segura de clave requiere HTTPS o localhost.","error");
+  }
 });
 const volumeControl=$("listenerVolume");
 function applyListenerVolume(){
