@@ -106,6 +106,9 @@ function leave(ws){
 wss.on("connection",ws=>{
   if (wss.clients.size > 80) {ws.close(1013,"Servidor lleno");return;}
   ws.id=crypto.randomUUID();
+  // Handshake sockets must join a room promptly; never hold idle capacity indefinitely.
+  ws.joinTimeout=setTimeout(()=>{if(!ws.room)ws.close(1008,"Tiempo de unión agotado");},15000);
+  ws.joinTimeout.unref();
   ws.awaitingPong=false;
   ws.on("pong",()=>{ws.awaitingPong=false;});
   ws.messageWindow=Date.now();ws.messageCount=0;
@@ -127,6 +130,7 @@ wss.on("connection",ws=>{
       const room=getRoom(roomCode);
       if(role==="source"&&room.source)return send(ws,{type:"error",message:"Esta sala ya tiene un micrófono activo"});
       if(role==="listener"&&room.listeners.size >= MAX_LISTENERS)return send(ws,{type:"error",message:"Sala llena: máximo 4 receptores"});
+      clearTimeout(ws.joinTimeout);
       ws.room=roomCode;ws.role=role;
       ws.audioTransport=role==="source"&&["pcm16","pcm-e2ee","text"].includes(m.transport)?m.transport:"webrtc";
       peers.set(ws.id,ws);
@@ -199,8 +203,8 @@ wss.on("connection",ws=>{
       return send(target,{type:"signal",from:ws.id,data:m.data});
     }
   });
-  ws.on("close",()=>leave(ws));
-  ws.on("error",()=>leave(ws));
+  ws.on("close",()=>{clearTimeout(ws.joinTimeout);leave(ws);});
+  ws.on("error",()=>{clearTimeout(ws.joinTimeout);leave(ws);});
 });
 if(require.main===module){
   const port=Number(process.env.PORT||3000);
