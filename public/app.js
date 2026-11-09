@@ -190,6 +190,7 @@ function endTone(message){
   const old=toneSocket;toneSocket=null;
   if(old)old.close();
   $("testAudio").textContent="♪ Probar audio cifrado (2 s, sin micrófono)";
+  $("testAudio").disabled=false;
   $("startSource").disabled=!!session.stream;
   $("testAudioStatus").textContent=message;
 }
@@ -210,6 +211,7 @@ $("testAudio").addEventListener("click",async()=>{
     return;
   }
   $("startSource").disabled=true;
+  $("testAudio").disabled=true;
   $("testAudio").textContent="■ Detener prueba";
   $("testAudioStatus").textContent="Preparando clave y conexión de prueba…";
   toneCancelled=false;
@@ -220,6 +222,7 @@ $("testAudio").addEventListener("click",async()=>{
   let ws;
   try{ws=wsOpen();}catch(error){endTone("No se pudo abrir WebSocket: "+error.message);return;}
   toneSocket=ws;
+  $("testAudio").disabled=false;
   ws.onopen=()=>{
     ws.send(JSON.stringify({type:"join",role:"source",transport:"pcm-e2ee",room}));
   };
