@@ -11,6 +11,7 @@
   <script src="/pcm-playback.js" defer></script>
   <script src="/pcm-capture.js" defer></script>
   <script src="/e2ee.js" defer></script>
+  <script src="/test-tone.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/experiments.js" defer></script>
 </head>
@@ -56,6 +57,8 @@
           <p class="listener-count" id="sourceListeners" role="status">Receptores conectados: 0</p>
           <div id="sourceStatus" class="status" role="status"><span class="status-indicator"></span><span id="sourceMessage">Micrófono apagado.</span></div>
           <div class="actions"><button id="startSource" class="button button-primary">◉ &nbsp; Activar micrófono</button><button id="stopSource" class="button button-ghost" disabled>Detener</button></div>
+          <button id="testAudio" class="button button-ghost" type="button">♪ Probar audio cifrado (2 s, sin micrófono)</button>
+          <p id="testAudioStatus" class="footnote" role="status">Envía un tono de prueba original de volumen bajo al receptor conectado, sin activar el micrófono.</p>
           <button id="copyRoom" class="link-action">Copiar enlace para escuchar ↗</button>
           <button id="copySecureInvite" class="link-action" type="button">Copiar invitación con clave privada</button>
           <p class="footnote">La invitación con clave permite descifrar el audio. Compártela solo con personas autorizadas.</p>
