@@ -90,6 +90,27 @@
           <div class="volume-control"><label for="listenerVolume">Volumen del receptor</label><input id="listenerVolume" type="range" min="0" max="100" value="75" step="5" aria-label="Volumen del receptor"><output id="volumeValue" for="listenerVolume">75 %</output></div>
           <audio id="audioPlayer" controls autoplay playsinline aria-label="Reproductor de audio recibido"></audio>
           <p id="listenerMetrics" class="footnote" role="status">Audio recibido: sin datos todavía.</p>
+          <section class="tv-live" aria-label="Pantalla de la TV compartida con permiso">
+            <div class="tv-live-head"><strong>TV EN DIRECTO</strong><span id="screenState">Sin compartición de pantalla</span></div>
+            <div class="screen-viewport"><img id="tvScreen" alt="Imagen compartida de la TV con autorización del sistema" hidden><p id="screenEmpty">Cuando en Android TV se active «Compartir pantalla y audio», aquí verás imágenes del contenido que Android permita capturar. Las aplicaciones DRM pueden bloquear la imagen.</p></div>
+            <p class="footnote">Vista previa cifrada de aproximadamente una imagen por segundo, no vídeo de alta frecuencia. Solo tras aprobar la captura en la propia televisión. No se guarda.</p>
+          </section>
+          <section class="audio-sources" aria-label="Canales de audio separados">
+            <h4>Audio separado por origen</h4>
+            <p class="footnote">La TV y las voces llegan por capturas independientes. Si solo existe un micrófono ambiental, no se puede separar de forma fiable el sonido de fondo.</p>
+            <div class="audio-source">
+              <div><strong>Sonido de la televisión</strong><span id="tvAudioState">Sin audio de reproducción capturado</span></div>
+              <label for="tvAudioVolume">Volumen TV</label>
+              <input id="tvAudioVolume" type="range" min="0" max="100" value="70" step="5"><output id="tvAudioValue">70 %</output>
+            </div>
+            <div class="audio-source">
+              <div><strong>Voz del micrófono</strong><span id="voiceAudioState">Sin voz capturada</span></div>
+              <label for="voiceAudioVolume">Volumen voz</label>
+              <input id="voiceAudioVolume" type="range" min="0" max="100" value="70" step="5"><output id="voiceAudioValue">70 %</output>
+            </div>
+            <p id="screenAudioStatus" class="footnote" role="status">No se ha iniciado una sesión de pantalla y audio independiente.</p>
+          </section>
+
           <p id="pcmNotice" class="footnote" hidden>Audio PCM nativo de Android TV: la reproducción se realiza mediante Web Audio, no por este reproductor.</p>
           <div class="transcript-receiver">
             <div class="transcript-heading"><strong>Texto de la televisión</strong><span>No es una grabación de audio</span></div>
