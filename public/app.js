@@ -4,6 +4,7 @@ const ROOM_PATTERN=/^[A-Z0-9]{8,16}$/;
 const session={source:null,listener:null,stream:null,relayContext:null,peers:new Map(),incoming:null,ice:{iceServers:[{urls:"stun:stun.l.google.com:19302"}]}};
 let pcmPlayer=null;
 let pcmSource=null;
+let voicePlayer=null,tvPlayer=null,screenObjectUrl=null;
 let nativeAudioMode=false;
 let listenerKeyPromise=null;
 let remoteRequiresE2EE=false;
@@ -35,6 +36,29 @@ function applyListenerVolume(){
   $("volumeValue").textContent=Math.round(volume*100)+" %";
   $("audioPlayer").volume=volume;
   pcmPlayer?.setVolume(volume);
+}
+for(const [name,field,target] of [
+  ["voice","voiceAudioVolume","voiceAudioValue"],
+  ["tv","tvAudioVolume","tvAudioValue"]
+]){
+  $(field).addEventListener("input",()=>{
+    const volume=Number($(field).value)/100;
+    $(target).textContent=Math.round(volume*100)+" %";
+    (name==="voice"?voicePlayer:tvPlayer)?.setVolume(volume);
+  });
+}
+function clearScreenAndChannels(){
+  voicePlayer?.stop();voicePlayer=null;
+  tvPlayer?.stop();tvPlayer=null;
+  const old=screenObjectUrl;screenObjectUrl=null;
+  $("tvScreen").hidden=true;
+  $("tvScreen").removeAttribute("src");
+  if(old)URL.revokeObjectURL(old);
+  $("screenEmpty").hidden=false;
+  $("screenState").textContent="Sin compartición de pantalla";
+  $("tvAudioState").textContent="Sin audio de reproducción capturado";
+  $("voiceAudioState").textContent="Sin voz capturada";
+  $("screenAudioStatus").textContent="No se ha iniciado una sesión de pantalla y audio independiente.";
 }
 volumeControl.addEventListener("input",applyListenerVolume);
 applyListenerVolume();
@@ -171,6 +195,7 @@ function closeSource(){
   setStatus("source","Micrófono apagado.");
 }
 function closeListener(){
+  clearScreenAndChannels();
   pcmPlayer?.stop();pcmPlayer=null;
   listenerKeyPromise=null;
   setNativeMode(false);
@@ -501,6 +526,9 @@ document.addEventListener("visibilitychange",()=>{
 $("startListener").addEventListener("click",()=>{
   const room=$("listenerRoom").value.trim().toUpperCase();
   let encryptedStream=false,invalidKeyAlerted=false,decryptQueue=Promise.resolve(),pendingDecrypt=0;
+  let screenDecoding=false;
+  const mediaPending={voice:0,tv:0};
+  const mediaQueues={voice:Promise.resolve(),tv:Promise.resolve()};
   const enableEncryptedMode=()=>{
     encryptedStream=true;
     const secret=$("listenerSecret").value.trim();
@@ -520,6 +548,12 @@ $("startListener").addEventListener("click",()=>{
     pcmPlayer=new HowdyPcm.Player();
     pcmPlayer.setVolume(Number(volumeControl.value)/100);
     void pcmPlayer.enable().catch(e=>setStatus("listener","Web Audio no disponible: "+e.message,"error"));
+    voicePlayer=new HowdyPcm.Player();
+    voicePlayer.setVolume(Number($("voiceAudioVolume").value)/100);
+    void voicePlayer.enable().catch(e=>$("voiceAudioState").textContent="Audio de voz bloqueado: "+e.message);
+    tvPlayer=new HowdyPcm.Player();
+    tvPlayer.setVolume(Number($("tvAudioVolume").value)/100);
+    void tvPlayer.enable().catch(e=>$("tvAudioState").textContent="Audio TV bloqueado: "+e.message);
   }catch(e){setStatus("listener","El navegador no admite PCM: "+e.message,"error");}
   const ws=wsOpen();session.listener=ws;
   setStatus("listener","Conectando a la sala...");
@@ -543,6 +577,53 @@ $("startListener").addEventListener("click",()=>{
         if(msg.transport==="text")setStatus("listener","Conectado a modo dictado: esperando texto.","live");
       }
       if(msg.type==="transcript"&&msg.audioAvailable===false)showRemoteTranscript(msg.text);
+      if(msg.type==="media-status"&&typeof msg.text==="string"){
+        $("screenAudioStatus").textContent=msg.text.slice(0,180);
+      }
+      if(msg.type==="media-frame"&&encryptedStream&&listenerKeyPromise){
+        const kind=msg.channel;
+        if((kind==="voice"||kind==="tv")&&mediaPending[kind]<8){
+          mediaPending[kind]++;
+          mediaQueues[kind]=mediaQueues[kind].then(async()=>{
+            const decryptor=await listenerKeyPromise;
+            const bytes=await decryptor.decryptMedia(msg.data,kind);
+            if(session.listener!==ws)return;
+            const player=kind==="voice"?voicePlayer:tvPlayer;
+            if(player?.play(HowdyE2EE.rawToPcmBase64(bytes))){
+              const node=$(kind==="voice"?"voiceAudioState":"tvAudioState");
+              if(player.frames===1)node.textContent="● Recibiendo pista cifrada";
+              if(player.frames%25===0)node.textContent="● "+player.frames+" tramas recibidas (20 ms)";
+            }
+          }).catch(()=>{
+            if(session.listener===ws)$("screenAudioStatus").textContent=
+              "No se pudo descifrar el canal "+(kind==="voice"?"micrófono":"TV")+". Revisa la clave de audio.";
+          }).finally(()=>mediaPending[kind]--);
+        }
+      }
+      if(msg.type==="screen-frame"&&encryptedStream&&listenerKeyPromise&&!screenDecoding){
+        screenDecoding=true;
+        try{
+          const decryptor=await listenerKeyPromise;
+          const jpeg=await decryptor.decryptMedia(msg.data,"screen");
+          if(jpeg.length<100||jpeg.length>90000||jpeg[0]!==255||jpeg[1]!==216||
+             jpeg[jpeg.length-2]!==255||jpeg[jpeg.length-1]!==217)
+             throw Error("Formato JPEG no válido");
+          if(session.listener===ws){
+            const previous=screenObjectUrl;
+            const url=URL.createObjectURL(new Blob([jpeg],{type:"image/jpeg"}));
+            screenObjectUrl=url;
+            const img=$("tvScreen");
+            img.onload=()=>{if(previous)URL.revokeObjectURL(previous);};
+            img.src=url;
+            img.hidden=false;
+            $("screenEmpty").hidden=true;
+            $("screenState").textContent="● Imagen cifrada recibida · vista previa";
+          }
+        }catch{
+          if(session.listener===ws)$("screenState").textContent=
+            "La pantalla no pudo descifrarse; revisa la clave o la compatibilidad.";
+        }finally{screenDecoding=false;}
+      }
       if(msg.type==="encrypted-frame"&&encryptedStream){
         if(listenerKeyPromise&&pendingDecrypt<8){
           pendingDecrypt++;
@@ -572,6 +653,7 @@ $("startListener").addEventListener("click",()=>{
         }
       }
       if(msg.type==="source-offline"){
+        clearScreenAndChannels();
         $("listenerMetrics").textContent="El emisor se ha desconectado.";
         setNativeMode(false);
         session.incoming?.pc.close();session.incoming=null;$("audioPlayer").srcObject=null;
