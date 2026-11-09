@@ -5,6 +5,7 @@ const session={source:null,listener:null,stream:null,relayContext:null,peers:new
 let pcmPlayer=null;
 let pcmSource=null;
 let voicePlayer=null,tvPlayer=null,screenObjectUrl=null;
+let listenerAudioContext=null;
 let nativeAudioMode=false;
 let listenerKeyPromise=null;
 let remoteRequiresE2EE=false;
@@ -47,9 +48,11 @@ for(const [name,field,target] of [
     (name==="voice"?voicePlayer:tvPlayer)?.setVolume(volume);
   });
 }
-function clearScreenAndChannels(){
-  voicePlayer?.stop();voicePlayer=null;
-  tvPlayer?.stop();tvPlayer=null;
+function clearScreenAndChannels(preserveAudioPlayers=false){
+  if(!preserveAudioPlayers){
+    voicePlayer?.stop();voicePlayer=null;
+    tvPlayer?.stop();tvPlayer=null;
+  }
   const old=screenObjectUrl;screenObjectUrl=null;
   $("tvScreen").hidden=true;
   $("tvScreen").removeAttribute("src");
@@ -201,6 +204,8 @@ function closeSource(){
 function closeListener(){
   clearScreenAndChannels();
   pcmPlayer?.stop();pcmPlayer=null;
+  const ctx=listenerAudioContext;listenerAudioContext=null;
+  if(ctx)void ctx.close().catch(()=>{});
   listenerKeyPromise=null;
   setNativeMode(false);
   session.incoming?.pc.close();session.incoming=null;
@@ -549,16 +554,28 @@ $("startListener").addEventListener("click",()=>{
   $("startListener").disabled=true;$("stopListener").disabled=false;
   setNativeMode(false);
   try{
-    pcmPlayer=new HowdyPcm.Player();
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(!Audio)throw Error("Web Audio no disponible");
+    // All three channels share one user-activated audio engine. Each Player
+    // owns an independent gain node, not a new browser AudioContext.
+    listenerAudioContext=new Audio({latencyHint:"interactive"});
+    void listenerAudioContext.resume().catch(e=>
+      setStatus("listener","El navegador bloquea la reproducción: "+e.message,"error"));
+    pcmPlayer=new HowdyPcm.Player(listenerAudioContext);
     pcmPlayer.setVolume(Number(volumeControl.value)/100);
-    void pcmPlayer.enable().catch(e=>setStatus("listener","Web Audio no disponible: "+e.message,"error"));
-    voicePlayer=new HowdyPcm.Player();
+    void pcmPlayer.enable().catch(e=>
+      setStatus("listener","Audio PCM no disponible: "+e.message,"error"));
+    voicePlayer=new HowdyPcm.Player(listenerAudioContext);
     voicePlayer.setVolume(Number($("voiceAudioVolume").value)/100);
-    void voicePlayer.enable().catch(e=>$("voiceAudioState").textContent="Audio de voz bloqueado: "+e.message);
-    tvPlayer=new HowdyPcm.Player();
+    void voicePlayer.enable().catch(e=>
+      $("voiceAudioState").textContent="Audio de voz bloqueado: "+e.message);
+    tvPlayer=new HowdyPcm.Player(listenerAudioContext);
     tvPlayer.setVolume(Number($("tvAudioVolume").value)/100);
-    void tvPlayer.enable().catch(e=>$("tvAudioState").textContent="Audio TV bloqueado: "+e.message);
-  }catch(e){setStatus("listener","El navegador no admite PCM: "+e.message,"error");}
+    void tvPlayer.enable().catch(e=>
+      $("tvAudioState").textContent="Audio TV bloqueado: "+e.message);
+  }catch(e){
+    setStatus("listener","El navegador no admite PCM: "+e.message,"error");
+  }
   const ws=wsOpen();session.listener=ws;
   setStatus("listener","Conectando a la sala...");
   ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"listener",room}));
@@ -682,7 +699,7 @@ $("startListener").addEventListener("click",()=>{
         }
       }
       if(msg.type==="source-offline"){
-        clearScreenAndChannels();
+        clearScreenAndChannels(true);
         $("listenerMetrics").textContent="El emisor se ha desconectado.";
         setNativeMode(false);
         session.incoming?.pc.close();session.incoming=null;$("audioPlayer").srcObject=null;
