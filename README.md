@@ -20,7 +20,7 @@ El [informe de auditoría](docs/AUDIT_2026-11-09.md) distingue las pruebas autom
 
 | Plataforma | Audio en directo | Teclado/dictado del sistema | Estado |
 |---|---|---|---|
-| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.1 compilada, hardware pendiente |
+| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.3 con PCM AES-GCM, pruebas físicas pendientes |
 | Samsung Tizen | getUserMedia/WebRTC si existen y están permitidos | Campo de texto, teclado Tizen y compartir texto manualmente | Código fuente; falta firma Tizen y prueba física |
 | Navegador en Smart TV / móvil / PC | getUserMedia/WebRTC cuando existe | Campo de texto y teclado del dispositivo (voz si existe) | Integrado en la web; depende del navegador |
 
@@ -30,9 +30,15 @@ No se permite lectura silenciosa del micrófono, ejecución oculta en standby ni
 
 **Compatible en la arquitectura actual.** La TV, el móvil y el servidor no tienen que estar en la misma Wi-Fi. En el servidor ejecuta `npm run remote` y, en un segundo terminal, `tailscale funnel 3000` para obtener un dominio HTTPS público de Tailscale sin instalar Tailscale en la TV. También puedes alojar el servidor en Railway mediante el archivo `railway.json`. Cada dispositivo usa la **misma dirección HTTPS/WSS y código privado**.
 
-La app Android TV envía audio PCM directamente a través del servidor WSS. En el navegador, selecciona **Modo distancia (sin TURN)** antes de activar el micrófono. El servidor intermedia el audio y puede acceder a él durante el tránsito: **PCM vía WSS no es cifrado de extremo a extremo**. El modo WebRTC sí cifra entre participantes, pero puede necesitar TURN.
+La app Android TV **1.3** cifra cada trama PCM con AES-256-GCM antes de enviarla al servidor WSS. Para escuchar necesitas tanto el código de sala como una **clave de audio independiente**. El servidor remoto rechaza fuentes PCM sin cifrar. En un navegador emisor selecciona **Modo distancia (sin TURN)** y activa el cifrado extremo a extremo. Detalles y límites en [cifrado E2EE](docs/END_TO_END_ENCRYPTION.md). El modo WebRTC usa DTLS-SRTP y puede necesitar TURN.
 
 Para evitar publicar informes de tráfico privados, el arranque `npm run remote` bloquea la API de reportes. No existe captación remota sin iniciar voluntariamente el micrófono en la TV. Para instrucciones paso a paso y limitaciones: **[Conexión con TV lejana](docs/REMOTE_CONNECTION.md)**.
+
+## Estado de despliegue y firma de Samsung (9 de noviembre de 2026)
+
+- El intento de crear el servidor en Railway quedó bloqueado por **período de prueba caducado**. **No hay un dominio público de Howdyknw desplegado** ni se ha activado ningún servicio de pago. Como alternativa, puedes ejecutar `npm run remote` y publicar temporalmente mediante Tailscale Funnel en un equipo propio.
+- El proyecto Samsung está validado y empaquetado como fuentes. Un **WGT instalable requiere el certificado de firma del propietario y el DUID de la TV**, obtenidos con Tizen Studio. No se deben inventar ni subir estos certificados al repositorio.
+- Las pruebas automatizadas han validado E2EE, integración del servidor y compilación Android. Sigue sin existir **prueba física de una TV con un móvil en otra red**.
 
 ## Inicio del servidor y receptor web
 
@@ -61,7 +67,7 @@ Abre la URL HTTPS proporcionada en la TV y en el receptor. Usa el mismo código 
 
 El audio PCM16 de Android TV se transporta por WSS al servidor; no necesita WebRTC en el emisor. El modo web/Tizen utiliza WebRTC si está disponible.
 
-## Android TV / Google TV — APK 1.2
+## Android TV / Google TV — APK 1.3
 
 El código está en [android-tv/](android-tv/), con una compilación de APK debug por GitHub Actions:
 https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
