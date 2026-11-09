@@ -201,6 +201,11 @@ public final class ScreenShareService extends Service {
                         JSONObject m=new JSONObject(raw);
                         String type=m.optString("type");
                         if("joined".equals(type)){
+                            if(!m.optBoolean("supportsMediaShare",false)){
+                                updateStatus("Servidor incompatible: actualiza Howdyknw en Railway. Captura detenida.");
+                                stopSelf();
+                                return;
+                            }
                             listeners.set(m.optInt("listenerCount",0));
                             startAudio();
                             sendCapabilities();
