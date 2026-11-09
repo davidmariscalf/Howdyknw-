@@ -80,6 +80,51 @@ public final class AudioCrypto {
         return Base64.getEncoder().encodeToString(envelope);
     }
 
+    /**
+     * V2 multimedia envelope with authenticated channel metadata.
+     * Allowed kinds: voice, tv and screen. Audio frames are 640 bytes,
+     * screen images may contain up to 90 KB compressed JPEG data.
+     */
+    public static String encryptMedia(SecretKey key, byte[] data, String kind)
+            throws GeneralSecurityException {
+        if (key == null || data == null || data.length < 1 || data.length > 90000
+                || (!"voice".equals(kind) && !"tv".equals(kind)
+                    && !"screen".equals(kind)))
+            throw new GeneralSecurityException("Canal multimedia no válido");
+        if (!"screen".equals(kind) && data.length != PCM_BYTES)
+            throw new GeneralSecurityException("Trama de audio incorrecta");
+        byte[] iv = new byte[12];
+        RANDOM.nextBytes(iv);
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
+        cipher.updateAAD(("howdyknw-media-v2|" + kind).getBytes(StandardCharsets.UTF_8));
+        byte[] encrypted = cipher.doFinal(data);
+        byte[] envelope = new byte[12 + encrypted.length];
+        System.arraycopy(iv, 0, envelope, 0, 12);
+        System.arraycopy(encrypted, 0, envelope, 12, encrypted.length);
+        return Base64.getEncoder().encodeToString(envelope);
+    }
+
+    public static byte[] decryptMedia(SecretKey key, String base64, String kind)
+            throws GeneralSecurityException {
+        if (key == null || base64 == null || base64.length() > 130000
+                || !base64.matches("[A-Za-z0-9+/]+={0,2}")
+                || (!"screen".equals(kind) && !"voice".equals(kind)
+                    && !"tv".equals(kind)))
+            throw new GeneralSecurityException("Sobre multimedia no válido");
+        byte[] envelope = Base64.getDecoder().decode(base64);
+        if (envelope.length < 29 || envelope.length > 90028)
+            throw new GeneralSecurityException("Longitud multimedia inválida");
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, key,
+                new GCMParameterSpec(128, Arrays.copyOfRange(envelope, 0, 12)));
+        cipher.updateAAD(("howdyknw-media-v2|" + kind).getBytes(StandardCharsets.UTF_8));
+        byte[] raw = cipher.doFinal(envelope, 12, envelope.length - 12);
+        if (!"screen".equals(kind) && raw.length != PCM_BYTES)
+            throw new GeneralSecurityException("PCM incorrecto");
+        return raw;
+    }
+
     public static byte[] decryptFrame(SecretKey key, String base64)
             throws GeneralSecurityException {
         if (key == null || base64 == null
