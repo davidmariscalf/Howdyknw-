@@ -56,6 +56,8 @@ public final class ScreenShareService extends Service {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicInteger listeners = new AtomicInteger(0);
     private final AtomicBoolean closing = new AtomicBoolean(false);
+    private static volatile boolean activeSession=false;
+    static boolean isActive(){return activeSession;}
 
     private OkHttpClient client;
     private WebSocket socket;
@@ -128,6 +130,7 @@ public final class ScreenShareService extends Service {
             return START_NOT_STICKY;
         }
         running.set(true);
+        activeSession=true;
         new Thread(()->startSession(result,data,url,room,secret),"howdy-screen-start").start();
         return START_NOT_STICKY;
     }
@@ -324,8 +327,9 @@ public final class ScreenShareService extends Service {
         }
         if(!shareVoice) {
             sendCapabilities();
-            updateStatus("Compartiendo imagen "+
-                (sharePlayback?"y sonido reproducido por apps compatibles":"sin audio")+
+            updateStatus("Compartiendo imagen · "+
+                (tvRecorder!=null?"audio de reproducción iniciado":
+                    sharePlayback?"audio de reproducción no disponible":"audio TV desactivado")+
                 " · micrófono de voz DESACTIVADO");
             return;
         }
@@ -378,6 +382,7 @@ public final class ScreenShareService extends Service {
 
     @Override public void onDestroy(){
         running.set(false);
+        activeSession=false;
         listeners.set(0);
         if(!closing.compareAndSet(false,true)){super.onDestroy();return;}
         if(socket!=null){socket.close(1000,"Captura finalizada");socket=null;}
