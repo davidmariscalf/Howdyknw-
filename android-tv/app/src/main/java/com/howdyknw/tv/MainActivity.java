@@ -12,6 +12,8 @@ import android.graphics.Color;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.text.method.PasswordTransformationMethod;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.method.SingleLineTransformationMethod;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
@@ -189,6 +191,19 @@ public final class MainActivity extends Activity {
         quickPairQr.setVisibility(View.GONE);
         root.addView(quickPairQr);
         quickPair.setOnClickListener(v -> makeQuickPair());
+        TextWatcher invalidateQrOnEdit=new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence text,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence text,int start,int before,int count){}
+            @Override public void afterTextChanged(Editable text){
+                if(quickPairQr!=null &&quickPairQr.getVisibility()==View.VISIBLE){
+                    hidePairingQr();
+                    quickPairHint.setText("La sala, la clave o el servidor han cambiado. Genera un QR nuevo antes de escanearlo.");
+                }
+            }
+        };
+        roomInput.addTextChangedListener(invalidateQrOnEdit);
+        audioSecretInput.addTextChangedListener(invalidateQrOnEdit);
+        urlInput.addTextChangedListener(invalidateQrOnEdit);
 
 
         TextView consent = label("Al pulsar INICIAR confirmas que todas las personas presentes conocen y aceptan esta transmisión de audio.", 16, 0xFFFFCC9C);
