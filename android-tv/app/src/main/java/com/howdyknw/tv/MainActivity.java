@@ -88,6 +88,7 @@ public final class MainActivity extends Activity {
     private Button stopScreenButton;
     private CheckBox sharePlaybackCheck;
     private CheckBox shareVoiceCheck;
+    private CheckBox fastPreviewCheck;
     private int preferredAudioSource = 0;
     private boolean pendingStart = false;
     private String roomCode;
@@ -221,6 +222,11 @@ public final class MainActivity extends Activity {
         shareVoiceCheck.setChecked(false);
         root.addView(shareVoiceCheck);
         root.addView(label("Puedes compartir solo la pantalla. Deja VOZ desmarcada si no quieres transmitir conversaciones. Android pedirá permiso de audio solo si activas una pista de audio.", 14, 0xFFA3C3CB));
+        fastPreviewCheck=new CheckBox(this);
+        fastPreviewCheck.setText("Vista previa rápida: hasta 2 imágenes por segundo (más datos)");
+        fastPreviewCheck.setTextColor(0xFFBCE9E2);
+        fastPreviewCheck.setChecked(false);
+        root.addView(fastPreviewCheck);
         startScreenButton=new Button(this);
         startScreenButton.setText("COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO");
         root.addView(startScreenButton);
@@ -627,7 +633,8 @@ public final class MainActivity extends Activity {
                     .putExtra(ScreenShareService.EXTRA_SECRET,
                             audioSecretInput.getText().toString().trim())
                     .putExtra(ScreenShareService.EXTRA_SHARE_TV,sharePlaybackCheck.isChecked())
-                    .putExtra(ScreenShareService.EXTRA_SHARE_VOICE,shareVoiceCheck.isChecked());
+                    .putExtra(ScreenShareService.EXTRA_SHARE_VOICE,shareVoiceCheck.isChecked())
+                    .putExtra(ScreenShareService.EXTRA_FAST_PREVIEW,fastPreviewCheck.isChecked());
             try{
                 if(Build.VERSION.SDK_INT>=26)startForegroundService(service);
                 else startService(service);
