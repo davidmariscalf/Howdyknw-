@@ -1,6 +1,6 @@
 # Howdyknw Native TV Audio
 
-Aplicación Android TV / Google TV (versión 1.5) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
+Aplicación Android TV / Google TV (versión 1.5.1) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
 
 No es una solución para capturar el micrófono del mando que solo es accesible por el asistente del fabricante. No tiene servicios de arranque ni grabación en segundo plano; al abandonar la pantalla detiene el audio.
 
@@ -17,7 +17,7 @@ El APK resultante estará en app/build/outputs/apk/debug/app-debug.apk.
 1. Arranca el servidor raíz Howdyknw: npm install && npm start.
 2. Publica HTTPS mediante Tailscale Serve o un proxy privado con certificado válido.
 3. En un móvil/ordenador abre la web, pestaña Audio en directo, e introduce un código de sala de 8 a 16 caracteres en el receptor. Pulsa Escuchar ahora.
-4. En la TV instala la APK 1.5. Introduce la URL **wss://** del mismo servidor y el MISMO código de sala. La TV también muestra una **clave de audio independiente** de 32 caracteres: escríbela en el receptor web (campo «Clave de audio»).
+4. En la TV instala la APK 1.5.1. Introduce la URL **wss://** del mismo servidor y el MISMO código de sala. La TV también muestra una **clave de audio independiente** de 32 caracteres: escríbela en el receptor web (campo «Clave de audio»).
 5. Con todos los presentes informados, pulsa INICIAR AUDIO y acepta RECORD_AUDIO cuando el sistema lo solicite. La TV cifra cada trama PCM con AES-256-GCM antes de enviarla.
 6. La TV mostrará el dispositivo de entrada elegido, el estado TRANSMITIENDO y el nivel de entrada PCM. El receptor descifrará las tramas con la clave compartida, o mostrará error si no coincide.
 7. Pulsa DETENER; la transmisión se apaga. Al salir de la pantalla también se apaga.
@@ -26,9 +26,9 @@ El servidor no conserva grabaciones ni las tramas de audio: retransmite a los oy
 
 ## Pantalla y pistas independientes (versión 1.5)
 
-En Android TV 1.5 selecciona **COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO**, acepta `RECORD_AUDIO` si procede y confirma el permiso oficial de pantalla en Android. Escoge **pantalla completa** cuando el sistema ofrezca esa opción. La app inicia `ScreenShareService`, un servicio foreground visible con una notificación permanente y botón **DETENER AHORA**; al salir de la interfaz para abrir otra app se mantiene la proyección hasta que la detengas o el sistema la revoque.
+En Android TV 1.5.1 elige primero si quieres compartir **sonido de las aplicaciones**, **voz del micrófono** (desactivada por defecto) o **solo pantalla**. Después selecciona **COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO**, acepta `RECORD_AUDIO` solo si procede y confirma el permiso oficial de pantalla en Android. Escoge **pantalla completa** cuando el sistema ofrezca esa opción. La app inicia `ScreenShareService`, un servicio foreground visible con una notificación permanente y botón **DETENER AHORA**; al salir de la interfaz para abrir otra app se mantiene la proyección hasta que la detengas o el sistema la revoque.
 
-La imagen se transmite como fotogramas JPEG de baja frecuencia (640 × 360, aprox. 1/s). En el receptor se ven y se descifran con la misma clave de audio. Los canales PCM `voice` (micrófono ambiente) y `tv` (captura de reproducción autorizada de otra app) son independientes, con reguladores de volumen e indicadores de señal.
+La imagen se transmite como fotogramas JPEG (640 × 360) de 1 imagen/s, o hasta 2 imágenes/s si se activa la opción de vista previa rápida. La velocidad superior consume más ancho de banda. En el receptor se ven y se descifran con la misma clave de audio. Los canales PCM `voice` (micrófono ambiente) y `tv` (captura de reproducción autorizada de otra app) son independientes, con reguladores de volumen e indicadores de señal.
 
 Esto no permite capturar HDMI/HDCP, aplicaciones DRM protegidas o cualquier audio de aplicaciones que se hayan opuesto a `AudioPlaybackCapture`. Si el micrófono oye la TV por los altavoces, la pista de voz también puede contener ese sonido. La app no es capaz de realizar separación perfecta de fuentes a partir de una mezcla grabada.
 
