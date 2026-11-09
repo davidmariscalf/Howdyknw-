@@ -7,6 +7,17 @@ let pcmSource=null;
 let nativeAudioMode=false;
 let listenerKeyPromise=null;
 let remoteRequiresE2EE=false;
+function secretVisibilityToggle(field,button){
+  const input=$(field),control=$(button);
+  control.addEventListener("click",()=>{
+    const hidden=input.type==="password";
+    input.type=hidden?"text":"password";
+    control.setAttribute("aria-label",(hidden?"Ocultar":"Mostrar")+" clave de "+(field==="sourceSecret"?"origen":"receptor"));
+    control.textContent=hidden?"◌":"◉";
+  });
+}
+secretVisibilityToggle("sourceSecret","toggleSourceSecret");
+secretVisibilityToggle("listenerSecret","toggleListenerSecret");
 try{$("sourceSecret").value=HowdyE2EE.makeSecret();}
 catch{$("sourceSecret").value="";}
 $("newAudioKey").addEventListener("click",()=>{
@@ -68,6 +79,8 @@ $("copyRemoteAddress").addEventListener("click",async()=>{
   }
 });
 updateRemoteAccessInfo();
+$("serviceBadge").textContent=location.protocol==="https:" && !/^(?:localhost|127\.0\.0\.1)$/i.test(location.hostname)
+  ? "Servidor HTTPS" : "Servidor local";
 $("probeConnection").addEventListener("click",async()=>{
   const button=$("probeConnection");
   button.disabled=true;
