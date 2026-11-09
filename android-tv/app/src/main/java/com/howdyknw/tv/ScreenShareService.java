@@ -46,6 +46,7 @@ public final class ScreenShareService extends Service {
     static final String EXTRA_SECRET = "audioSecret";
     static final String EXTRA_SHARE_TV = "shareTvAudio";
     static final String EXTRA_SHARE_VOICE = "shareVoiceAudio";
+    static final String EXTRA_FAST_PREVIEW = "fastPreview";
     private static final String CHANNEL_ID = "howdyknw_screenshare";
     private static final int NOTIFICATION_ID = 409;
     private static final int WIDTH = 640;
@@ -72,6 +73,7 @@ public final class ScreenShareService extends Service {
     private String lastStatus = "Iniciando emisión autorizada";
     private boolean sharePlayback;
     private boolean shareVoice;
+    private int screenIntervalMs=1000;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -92,6 +94,7 @@ public final class ScreenShareService extends Service {
 
         sharePlayback=intent.getBooleanExtra(EXTRA_SHARE_TV,false);
         shareVoice=intent.getBooleanExtra(EXTRA_SHARE_VOICE,false);
+        screenIntervalMs=intent.getBooleanExtra(EXTRA_FAST_PREVIEW,false)?500:1000;
         // Screen-only projection does not claim microphone capture. Optional
         // audio tracks require an independent, visible user selection.
         try {
@@ -252,7 +255,7 @@ public final class ScreenShareService extends Service {
             long now=System.currentTimeMillis();
             WebSocket ws=socket;
             if(!running.get() ||listeners.get()==0 ||ws==null ||
-                    ws.queueSize()>140000 ||now-previousImageTime<1000)return;
+                    ws.queueSize()>140000 ||now-previousImageTime<screenIntervalMs)return;
             previousImageTime=now;
             Image.Plane plane=img.getPlanes()[0];
             int pixelStride=plane.getPixelStride(),rowStride=plane.getRowStride();
