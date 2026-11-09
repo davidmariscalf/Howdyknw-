@@ -86,6 +86,8 @@ public final class MainActivity extends Activity {
     private Button recoveryButton;
     private Button startScreenButton;
     private Button stopScreenButton;
+    private CheckBox sharePlaybackCheck;
+    private CheckBox shareVoiceCheck;
     private int preferredAudioSource = 0;
     private boolean pendingStart = false;
     private String roomCode;
@@ -208,6 +210,17 @@ public final class MainActivity extends Activity {
         screenTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         root.addView(screenTitle);
         root.addView(label("Solo después de aceptar el diálogo de Android: muestra imágenes de la pantalla en el receptor y prueba dos pistas separadas: VOZ (micrófono) y SONIDO DE LA TV (reproducción que las aplicaciones permiten capturar). La pantalla puede compartirse mientras ves otra aplicación, con notificación persistente y botón DETENER. Contenido DRM/HDMI puede quedar negro y ciertas apps no permiten capturar audio. Sin guardar imágenes ni sonido.",15,Color.WHITE));
+        sharePlaybackCheck=new CheckBox(this);
+        sharePlaybackCheck.setText("Compartir sonido de aplicaciones (si Android lo permite)");
+        sharePlaybackCheck.setTextColor(0xFFBCE9E2);
+        sharePlaybackCheck.setChecked(true);
+        root.addView(sharePlaybackCheck);
+        shareVoiceCheck=new CheckBox(this);
+        shareVoiceCheck.setText("Compartir también la voz del micrófono (opcional)");
+        shareVoiceCheck.setTextColor(0xFFFFD7B3);
+        shareVoiceCheck.setChecked(false);
+        root.addView(shareVoiceCheck);
+        root.addView(label("Puedes compartir solo la pantalla. Deja VOZ desmarcada si no quieres transmitir conversaciones. Android pedirá permiso de audio solo si activas una pista de audio.", 14, 0xFFA3C3CB));
         startScreenButton=new Button(this);
         startScreenButton.setText("COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO");
         root.addView(startScreenButton);
@@ -338,7 +351,8 @@ public final class MainActivity extends Activity {
             setStatus("Indica una dirección WSS segura válida para compartir pantalla.",false);
             return;
         }
-        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+        boolean anyAudio=shareVoiceCheck.isChecked()||sharePlaybackCheck.isChecked();
+        if(anyAudio &&checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
                     SCREEN_AUDIO_PERMISSION_REQUEST);
             return;
@@ -611,7 +625,9 @@ public final class MainActivity extends Activity {
                     .putExtra(ScreenShareService.EXTRA_ROOM,
                             roomInput.getText().toString().trim().toUpperCase(Locale.ROOT))
                     .putExtra(ScreenShareService.EXTRA_SECRET,
-                            audioSecretInput.getText().toString().trim());
+                            audioSecretInput.getText().toString().trim())
+                    .putExtra(ScreenShareService.EXTRA_SHARE_TV,sharePlaybackCheck.isChecked())
+                    .putExtra(ScreenShareService.EXTRA_SHARE_VOICE,shareVoiceCheck.isChecked());
             try{
                 if(Build.VERSION.SDK_INT>=26)startForegroundService(service);
                 else startService(service);
