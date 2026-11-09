@@ -18,12 +18,19 @@
     return pcm;
   }
   class Player {
-    constructor(){this.context=null;this.output=null;this.volume=0.75;this.cursor=0;this.frames=0;}
+    constructor(sharedContext=null){
+      this.context=sharedContext;
+      this.ownsContext=!sharedContext;
+      this.output=null;this.volume=0.75;this.cursor=0;this.frames=0;
+    }
     async enable(){
-      const Audio=typeof window!=="undefined"?(window.AudioContext||window.webkitAudioContext):null;
-      if(!Audio)throw Error("El navegador no permite reproducir PCM con Web Audio.");
       if(!this.context){
+        const Audio=typeof window!=="undefined"?(window.AudioContext||window.webkitAudioContext):null;
+        if(!Audio)throw Error("El navegador no permite reproducir PCM con Web Audio.");
         this.context=new Audio({latencyHint:"interactive"});
+        this.ownsContext=true;
+      }
+      if(!this.output){
         this.output=this.context.createGain();
         this.output.gain.value=this.volume;
         this.output.connect(this.context.destination);
@@ -53,9 +60,10 @@
       return true;
     }
     stop(){
-      const ctx=this.context;
+      const ctx=this.context,output=this.output,owned=this.ownsContext;
       this.context=null;this.output=null;this.cursor=0;this.frames=0;
-      if(ctx)void ctx.close().catch(()=>{});
+      if(output)try{output.disconnect();}catch{}
+      if(ctx&&owned)void ctx.close().catch(()=>{});
     }
   }
   return {SAMPLE_RATE,BYTES_PER_FRAME,decodeFrame,Player};
