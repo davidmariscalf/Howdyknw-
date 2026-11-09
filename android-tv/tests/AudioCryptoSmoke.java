@@ -50,6 +50,22 @@ public final class AudioCryptoSmoke {
             AudioCrypto.decryptFrame(AudioCrypto.deriveKey("A-WRONG-AUDIO-SECRET",room),transmitted);
             throw new AssertionError("Tampered key must fail");
         }catch(javax.crypto.AEADBadTagException expected){}
+        byte[] tvAudio=new byte[640];
+        Arrays.fill(tvAudio,(byte)55);
+        String voicePacket=AudioCrypto.encryptMedia(key,frame,"voice");
+        String tvPacket=AudioCrypto.encryptMedia(key,tvAudio,"tv");
+        byte[] screenData=new byte[]{(byte)255,(byte)216,1,2,3,(byte)255,(byte)217};
+        String screenPacket=AudioCrypto.encryptMedia(key,screenData,"screen");
+        check(Arrays.equals(AudioCrypto.decryptMedia(key,voicePacket,"voice"),frame),
+            "Microphone E2EE failed");
+        check(Arrays.equals(AudioCrypto.decryptMedia(key,tvPacket,"tv"),tvAudio),
+            "TV playback E2EE failed");
+        check(Arrays.equals(AudioCrypto.decryptMedia(key,screenPacket,"screen"),screenData),
+            "Screen JPEG encryption failed");
+        try{
+            AudioCrypto.decryptMedia(key,tvPacket,"voice");
+            throw new AssertionError("The TV channel must never be mistaken for speech");
+        }catch(javax.crypto.AEADBadTagException expected){}
         String fresh=AudioCrypto.newSecret();
         check(fresh.matches("[0-9A-F]{32}"),"Weak/invalid generated secret");
         System.out.println("AudioCrypto: interoperable reference vectors and failure tests PASSED");
