@@ -112,11 +112,11 @@ wss.on("connection",ws=>{
   ws.awaitingPong=false;
   ws.on("pong",()=>{ws.awaitingPong=false;});
   ws.messageWindow=Date.now();ws.messageCount=0;
-  ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;ws.transcriptCount=0;
+  ws.room=null;ws.role=null;ws.audioTransport="webrtc";ws.frameWindowStart=0;ws.frameCount=0;ws.mediaCounts={voice:0,tv:0,screen:0};ws.transcriptCount=0;
   ws.on("message",raw=>{
     const now=Date.now();
     if(now-ws.messageWindow>1000){ws.messageWindow=now;ws.messageCount=0;}
-    if(++ws.messageCount>100){ws.close(1008,"Frecuencia de mensajes excesiva");return;}
+    if(++ws.messageCount>135){ws.close(1008,"Frecuencia de mensajes excesiva");return;}
     let m;
     try{m=JSON.parse(raw.toString());}catch{return send(ws,{type:"error",message:"JSON inválido"});}
     if (!m || typeof m !== "object" || Array.isArray(m)) return send(ws,{type:"error",message:"Mensaje no válido"});
@@ -180,6 +180,35 @@ wss.on("connection",ws=>{
       if(++ws.frameCount>65)return;
       for(const listener of room.listeners.values()){
         if(listener.bufferedAmount<200000)send(listener,{type:"encrypted-frame",data:m.data});
+      }
+      return;
+    }
+    // MediaProjection opt-in stream: AES-GCM ciphertext only, with distinct
+    // authenticated voice/TV audio channels and encrypted screen JPEG previews.
+    if((m.type==="media-frame"||m.type==="screen-frame")&&
+       ws.role==="source"&&ws.room&&ws.audioTransport==="pcm-e2ee"){
+      const kind=m.type==="screen-frame"?"screen":m.channel;
+      if(!["voice","tv","screen"].includes(kind) ||
+          (m.type==="media-frame"&&kind==="screen") ||
+          typeof m.data!=="string")return;
+      const audio=kind!=="screen";
+      if(audio&&!/^[A-Za-z0-9+/]{891}=$/.test(m.data))return;
+      if(!audio&&(m.data.length<40||m.data.length>120040||
+          !/^[A-Za-z0-9+/]+={0,2}$/.test(m.data)||
+          m.data.length%4!==0))return;
+      const room=rooms.get(ws.room);
+      if(!room||room.source!==ws||room.listeners.size===0)return;
+      const timestamp=Date.now();
+      if(timestamp-ws.frameWindowStart>=1000){
+        ws.frameWindowStart=timestamp;ws.frameCount=0;
+        ws.mediaCounts={voice:0,tv:0,screen:0};
+      }
+      if(++ws.mediaCounts[kind]>(audio?60:2))return;
+      const outbound=audio?
+        {type:"media-frame",channel:kind,data:m.data}:
+        {type:"screen-frame",data:m.data};
+      for(const listener of room.listeners.values()){
+        if(listener.bufferedAmount<(audio?210000:120000))send(listener,outbound);
       }
       return;
     }
