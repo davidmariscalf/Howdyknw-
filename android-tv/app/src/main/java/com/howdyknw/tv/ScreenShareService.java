@@ -44,6 +44,8 @@ public final class ScreenShareService extends Service {
     static final String EXTRA_URL = "serverUrl";
     static final String EXTRA_ROOM = "roomCode";
     static final String EXTRA_SECRET = "audioSecret";
+    static final String EXTRA_SHARE_TV = "shareTvAudio";
+    static final String EXTRA_SHARE_VOICE = "shareVoiceAudio";
     private static final String CHANNEL_ID = "howdyknw_screenshare";
     private static final int NOTIFICATION_ID = 409;
     private static final int WIDTH = 640;
@@ -67,6 +69,8 @@ public final class ScreenShareService extends Service {
     private SecretKey key;
     private long previousImageTime;
     private String lastStatus = "Iniciando emisión autorizada";
+    private boolean sharePlayback;
+    private boolean shareVoice;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -85,10 +89,14 @@ public final class ScreenShareService extends Service {
         if (!ACTION_START.equals(intent.getAction()) || running.get() || closing.get())
             return START_NOT_STICKY;
 
-        // Foreground projection and microphone are explicitly user initiated.
+        sharePlayback=intent.getBooleanExtra(EXTRA_SHARE_TV,false);
+        shareVoice=intent.getBooleanExtra(EXTRA_SHARE_VOICE,false);
+        // Screen-only projection does not claim microphone capture. Optional
+        // audio tracks require an independent, visible user selection.
         try {
-            int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION |
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+            int types=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
+            if(shareVoice||sharePlayback)
+                types|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
             startForeground(NOTIFICATION_ID,notification("Permiso concedido. Preparando captura…"),types);
         } catch (Exception e) {
             stopSelf();
@@ -103,7 +111,8 @@ public final class ScreenShareService extends Service {
         final String room=intent.getStringExtra(EXTRA_ROOM);
         final String secret=intent.getStringExtra(EXTRA_SECRET);
         if (result!=Activity.RESULT_OK || data==null ||url==null ||room==null ||
-                secret==null ||checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {
+                secret==null ||((shareVoice||sharePlayback)&&
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -180,7 +189,9 @@ public final class ScreenShareService extends Service {
                         if("joined".equals(type)){
                             listeners.set(m.optInt("listenerCount",0));
                             startAudio();
-                            updateStatus("Pantalla autorizada · audio TV y micrófono separados");
+                            updateStatus("Pantalla autorizada · "+
+                                    (sharePlayback?"TV activado":"TV desactivado")+
+                                    " · "+(shareVoice?"voz activada":"voz desactivada"));
                         }else if("listener-count".equals(type)){
                             int count=Math.max(0,Math.min(4,m.optInt("count")));
                             listeners.set(count);
@@ -240,7 +251,7 @@ public final class ScreenShareService extends Service {
     private synchronized void startAudio() {
         if(!running.get()||micThread!=null)return;
         // Separately capture public playback audio (only apps that allow capture).
-        if(Build.VERSION.SDK_INT>=29){
+        if(sharePlayback&&Build.VERSION.SDK_INT>=29){
             try {
                 AudioPlaybackCaptureConfiguration config=
                     new AudioPlaybackCaptureConfiguration.Builder(projection)
@@ -270,6 +281,12 @@ public final class ScreenShareService extends Service {
                 tvRecorder=null;
                 updateStatus("Audio TV no capturable. Se mantiene pantalla y se probará micrófono.");
             }
+        }
+        if(!shareVoice) {
+            updateStatus("Compartiendo imagen "+
+                (sharePlayback?"y sonido reproducido por apps compatibles":"sin audio")+
+                " · micrófono de voz DESACTIVADO");
+            return;
         }
         try {
             MicRecovery.Result result=MicRecovery.open(SAMPLE_RATE,FRAME_BYTES,0);
