@@ -6,6 +6,7 @@ let pcmPlayer=null;
 let pcmSource=null;
 let nativeAudioMode=false;
 let listenerKeyPromise=null;
+let remoteRequiresE2EE=false;
 $("sourceSecret").value=HowdyE2EE.makeSecret();
 $("newAudioKey").addEventListener("click",()=>{
   if(session.stream)return;
@@ -140,7 +141,7 @@ function closeSource(){
     session.relayContext=null;
   }
   $("relayMode").disabled=false;
-  $("encryptAudio").disabled=false;
+  $("encryptAudio").disabled=remoteRequiresE2EE;
   $("sourceSecret").disabled=false;
   $("newAudioKey").disabled=false;
   for(const entry of session.peers.values())entry.pc.close();
@@ -169,22 +170,44 @@ $("generateRoom").addEventListener("click",()=>{
   const code=makeCode();$("sourceRoom").value=code;$("listenerRoom").value=code;
 });
 $("sourceRoom").value=makeCode();
-$("listenerRoom").value=(new URLSearchParams(location.hash.slice(1)).get("room")||new URLSearchParams(location.search).get("room"))?.trim().toUpperCase()||$("sourceRoom").value;
+const inviteParams=new URLSearchParams(location.hash.slice(1));
+$("listenerRoom").value=(inviteParams.get("room")||new URLSearchParams(location.search).get("room"))?.trim().toUpperCase()||$("sourceRoom").value;
+if(inviteParams.has("audioKey"))$("listenerSecret").value=inviteParams.get("audioKey").slice(0,128);
 $("sourceRoom").addEventListener("input",()=>{if(!session.listener)$("listenerRoom").value=$("sourceRoom").value.toUpperCase();});
 $("copyRoom").addEventListener("click",async()=>{
   const url=new URL(location.href);url.search="";url.hash="room="+encodeURIComponent($("sourceRoom").value.trim().toUpperCase());
   try{await navigator.clipboard.writeText(url.href);$("copyRoom").textContent="¡Enlace copiado! ✓";}
   catch{$("copyRoom").textContent="Enlace: "+url.href;}
 });
+$("copySecureInvite").addEventListener("click",async()=>{
+  const room=$("sourceRoom").value.trim().toUpperCase();
+  const secret=$("sourceSecret").value.trim();
+  if(!ROOM_PATTERN.test(room)||!HowdyE2EE.validSecret(secret))
+    return setStatus("source","Introduce sala válida y clave privada antes de compartir.","error");
+  const url=new URL(location.href);
+  url.search="";
+  url.hash=new URLSearchParams({room,audioKey:secret}).toString();
+  try{
+    await navigator.clipboard.writeText(url.href);
+    $("copySecureInvite").textContent="Invitación cifrada copiada ✓";
+  }catch{
+    $("copySecureInvite").textContent="No se pudo copiar: revisa permisos del portapapeles";
+  }
+});
 async function configureIce(){
-  try{const r=await fetch("/api/config",{cache:"no-store"});if(r.ok){const data=await r.json();if(Array.isArray(data.iceServers))session.ice={iceServers:data.iceServers};}}catch{}
+  try{const r=await fetch("/api/config",{cache:"no-store"});if(r.ok){const data=await r.json();if(Array.isArray(data.iceServers))session.ice={iceServers:data.iceServers};
+    if(data.requiresE2EE===true){
+      remoteRequiresE2EE=true;
+      $("encryptAudio").checked=true;
+      $("encryptAudio").disabled=true;
+    }}}catch{}
 }
 configureIce();
 browserRequirements();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
   const viaRelay=$("relayMode").checked;
-  const encryptedMode=viaRelay&&$("encryptAudio").checked;
+  const encryptedMode=viaRelay&&(remoteRequiresE2EE||$("encryptAudio").checked);
   let sourceKey=null,cryptoQueue=Promise.resolve(),queuedFrames=0,relayListeners=0;
   if(encryptedMode&&!HowdyE2EE.validSecret($("sourceSecret").value.trim()))
     return setStatus("source","El cifrado requiere una clave independiente de 16 caracteres o más.","error");
