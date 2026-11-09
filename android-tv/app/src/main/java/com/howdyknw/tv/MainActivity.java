@@ -79,6 +79,7 @@ public final class MainActivity extends Activity {
     private Button stopButton;
     private TextView recoveryView;
     private Button recoveryButton;
+    private int preferredAudioSource = 0;
     private boolean pendingStart = false;
     private String roomCode;
 
@@ -170,6 +171,9 @@ public final class MainActivity extends Activity {
         recoveryButton.setOnClickListener(v -> {
             if (pendingStart) return;
             if (socket != null || running.get()) stopStreaming("Reintento solicitado. Deteniendo entrada anterior.");
+            preferredAudioSource = (preferredAudioSource + 1) % 3;
+            recoveryView.setText("Buscando entrada alternativa (" + (preferredAudioSource + 1)
+                    + " de 3). Habla en voz alta durante la prueba para comprobar el nivel.");
             showMicDevices();
             requestStart();
         });
@@ -372,13 +376,14 @@ public final class MainActivity extends Activity {
             stopStreaming("El sistema tiene el micrófono silenciado.");
             return;
         }
-        MicRecovery.Result result = MicRecovery.open(SAMPLE_RATE, FRAME_BYTES);
+        MicRecovery.Result result = MicRecovery.open(SAMPLE_RATE, FRAME_BYTES, preferredAudioSource);
         if (result.recorder == null) {
             showRecoveryAdvice(result.error);
             stopStreaming("No se pudo iniciar una entrada de micrófono autorizada.");
             return;
         }
         recorder = result.recorder;
+        preferredAudioSource = result.sourceIndex;
         recoveryView.setText("Micrófono iniciado con fuente autorizada: " + result.routeLabel
                 + ". Comprueba el nivel PCM; iniciar AudioRecord no garantiza que la TV entregue sonido.");
         running.set(true);
@@ -400,6 +405,8 @@ public final class MainActivity extends Activity {
         byte[] frame = new byte[FRAME_BYTES];
         int position = 0;
         long lastMeter = System.currentTimeMillis();
+        long lastActivity = System.currentTimeMillis();
+        boolean silenceWarningShown = false;
         while (running.get()) {
             int n;
             try { n = input.read(frame, position, frame.length - position, AudioRecord.READ_BLOCKING); }
@@ -418,9 +425,22 @@ public final class MainActivity extends Activity {
                     sum += (long)pcm * pcm;
                 }
                 int level = (int)Math.sqrt(sum / (FRAME_BYTES / 2.0));
+                if (level > 180) {
+                    lastActivity = System.currentTimeMillis();
+                    silenceWarningShown = false;
+                }
+                final boolean noSignal = !silenceWarningShown
+                        && System.currentTimeMillis() - lastActivity > 5500;
+                if (noSignal) silenceWarningShown = true;
                 runOnUiThread(() -> {
-                    if (running.get()) levelView.setText(
-                            "Nivel de micrófono: " + level + " / 32768 (PCM)");
+                    if (running.get()) {
+                        levelView.setText("Nivel de micrófono: " + level + " / 32768 (PCM)");
+                        if (noSignal) showRecoveryAdvice(
+                                "No se detecta señal PCM apreciable tras varios segundos. "
+                                + "Habla cerca del micrófono, comprueba el silencio del sistema "
+                                + "o pulsa REINTENTAR para probar una fuente diferente. "
+                                + "Esto no demuestra que no exista micrófono.");
+                    }
                 });
                 lastMeter = System.currentTimeMillis();
             }
