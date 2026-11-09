@@ -20,7 +20,7 @@
   <div class="shell">
     <header class="topbar">
       <a class="brand" href="/" aria-label="Howdyknw, inicio"><span class="brand-icon">H<span class="brand-point">·</span></span><span class="brand-name">HOWDYKNW<small>CONTROL DE DISPOSITIVOS</small></span></a>
-      <span class="chip"><span class="signal-dot"></span> Panel local</span>
+      <span class="chip"><span class="signal-dot"></span><span id="serviceBadge">Comprobando servidor…</span></span>
     </header>
     <section class="intro">
       <div class="overline">TU TELEVISIÓN, BAJO LA LUPA</div>
@@ -49,9 +49,9 @@
           <div class="card-heading"><div class="avatar microphone">◉</div><div><div class="step">DISPOSITIVO A</div><h3>Junto a la televisión</h3></div></div>
           <p>Abre esta web en un móvil u ordenador cercano a la televisión. Pulsa Activar para conceder permiso al micrófono.</p>
           <div class="field"><label for="sourceRoom">Código privado de la sala</label><div class="field-row"><input id="sourceRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del emisor"><button id="generateRoom" class="icon-button" title="Crear otro código" aria-label="Crear código nuevo">↻</button></div></div>
-          <label class="relay-mode"><input id="relayMode" type="checkbox"><span><strong>Modo distancia (sin TURN)</strong> · Enviar audio mediante el servidor WSS. Úsalo si la TV y el receptor están en redes distintas y WebRTC no conecta. El servidor puede procesar el audio durante la transmisión; no se guarda.</span></label>
+          <label class="relay-mode"><input id="relayMode" type="checkbox"><span><strong>Modo distancia (sin TURN)</strong> · Enviar audio mediante el servidor WSS. Úsalo si la TV y el receptor están en redes distintas y WebRTC no conecta. Si activas cifrado PCM, el servidor solo retransmite paquetes cifrados. Sin cifrado, puede acceder al audio durante el transporte.</span></label>
           <label class="relay-mode"><input id="encryptAudio" type="checkbox" checked><span><strong>Cifrado extremo a extremo para PCM (recomendado)</strong> · Requiere clave de audio independiente de la sala; el servidor no podrá descifrarla.</span></label>
-          <div class="field"><label for="sourceSecret">Clave de audio privada (solo para modo distancia)</label><div class="field-row"><input id="sourceSecret" type="text" minlength="16" maxlength="128" autocomplete="off" spellcheck="false" placeholder="Clave secreta, independiente de la sala"><button id="newAudioKey" class="icon-button" type="button" title="Generar clave segura" aria-label="Generar clave segura">↻</button></div><p class="footnote">Comparte la clave únicamente con quienes deban escuchar. No la introduzcas en el servidor.</p></div>
+          <div class="field"><label for="sourceSecret">Clave de audio privada (solo para modo distancia)</label><div class="field-row"><input id="sourceSecret" type="password" minlength="16" maxlength="128" autocomplete="off" spellcheck="false" placeholder="Clave secreta, independiente de la sala"><button id="newAudioKey" class="icon-button" type="button" title="Generar clave segura" aria-label="Generar clave segura">↻</button><button id="toggleSourceSecret" class="icon-button" type="button" aria-label="Mostrar clave de origen">◉</button></div><p class="footnote">Comparte la clave únicamente con quienes deban escuchar. No la introduzcas en el servidor.</p></div>
           <label class="consent"><input id="consentMic" type="checkbox"><span>Confirmo que las personas presentes conocen y aceptan esta prueba y cualquier transmisión de audio o texto que active.</span></label>
           <p class="listener-count" id="sourceListeners" role="status">Receptores conectados: 0</p>
           <div id="sourceStatus" class="status" role="status"><span class="status-indicator"></span><span id="sourceMessage">Micrófono apagado.</span></div>
@@ -73,7 +73,7 @@
           <div class="card-heading"><div class="avatar headphones">♫</div><div><div class="step">DISPOSITIVO B</div><h3>Donde quieras escuchar</h3></div></div>
           <p>Abre la misma web en otro dispositivo, introduce el código de sala y utiliza auriculares para evitar acoples.</p>
           <div class="field"><label for="listenerRoom">Código de sala para conectarse</label><input id="listenerRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del receptor"></div>
-          <div class="field"><label for="listenerSecret">Clave de audio (si el emisor usa cifrado PCM)</label><input id="listenerSecret" type="text" maxlength="128" autocomplete="off" spellcheck="false" placeholder="La misma clave configurada en la TV"></div>
+          <div class="field"><label for="listenerSecret">Clave de audio (si el emisor usa cifrado PCM)</label><div class="field-row"><input id="listenerSecret" type="password" maxlength="128" autocomplete="off" spellcheck="false" placeholder="La misma clave configurada en la TV"><button id="toggleListenerSecret" class="icon-button" type="button" aria-label="Mostrar clave del receptor">◉</button></div></div>
           <div id="listenerStatus" class="status" role="status"><span class="status-indicator"></span><span id="listenerMessage">Esperando conexión.</span></div>
           <div class="actions"><button id="startListener" class="button button-primary">▷ &nbsp; Escuchar ahora</button><button id="stopListener" class="button button-ghost" disabled>Desconectar</button></div>
           <div class="volume-control"><label for="listenerVolume">Volumen del receptor</label><input id="listenerVolume" type="range" min="0" max="100" value="75" step="5" aria-label="Volumen del receptor"><output id="volumeValue" for="listenerVolume">75 %</output></div>
