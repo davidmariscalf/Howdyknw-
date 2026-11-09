@@ -28,7 +28,7 @@ jobs:
           assert xml.find("tizen:profile",ns).attrib["name"]=="tv"
           privileges={node.attrib["name"] for node in xml.findall("tizen:privilege",ns)}
           assert "http://tizen.org/privilege/internet" in privileges
-          required=["config.xml","index.html","style.css","app.js","README.md"]
+          required=["config.xml","index.html","style.css","app.js","README.md","package-with-profile.sh"]
           for item in required:
               assert (root/item).is_file(),item
           assert 'src="app.js"' in (root/"index.html").read_text(encoding="utf-8")
