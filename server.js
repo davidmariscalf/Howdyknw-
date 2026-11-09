@@ -82,7 +82,7 @@ const heartbeatTimer=setInterval(heartbeatSweep,25000);
 heartbeatTimer.unref();
 wss.on("close",()=>clearInterval(heartbeatTimer));
 function send(ws,msg){if(ws && ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg));}
-function getRoom(code){if(!rooms.has(code))rooms.set(code,{source:null,listeners:new Map()});return rooms.get(code);}
+function getRoom(code){if(!rooms.has(code))rooms.set(code,{source:null,listeners:new Map(),mediaCapabilities:null});return rooms.get(code);}
 function notifyListenerCount(room){
   send(room.source,{type:"listener-count",count:room.listeners.size});
 }
@@ -92,6 +92,7 @@ function leave(ws){
   if(room){
     if(ws.role==="source"&&room.source===ws){
       room.source=null;
+      room.mediaCapabilities=null;
       for(const listener of room.listeners.values())send(listener,{type:"source-offline"});
     }
     if(ws.role==="listener"){
@@ -136,6 +137,7 @@ wss.on("connection",ws=>{
       peers.set(ws.id,ws);
       if(role==="source"){
         room.source=ws;
+        room.mediaCapabilities=null;
         // Send join configuration BEFORE offers, important for TV runtimes.
         send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:true,listenerCount:room.listeners.size,sourceTransport:ws.audioTransport,iceServers:getIceServers()});
         notifyListenerCount(room);
@@ -147,6 +149,7 @@ wss.on("connection",ws=>{
         room.listeners.set(ws.id,ws);
         send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,listenerCount:room.listeners.size,sourceTransport:room.source?.audioTransport||null,iceServers:getIceServers()});
         notifyListenerCount(room);
+        if(room.mediaCapabilities)send(ws,room.mediaCapabilities);
         if(room.source&&room.source.audioTransport==="webrtc")send(room.source,{type:"listener-joined",id:ws.id});
       }
       return;
@@ -181,6 +184,19 @@ wss.on("connection",ws=>{
       for(const listener of room.listeners.values()){
         if(listener.bufferedAmount<200000)send(listener,{type:"encrypted-frame",data:m.data});
       }
+      return;
+    }
+    if(m.type==="media-capabilities"&&ws.role==="source"&&ws.room&&
+       ws.audioTransport==="pcm-e2ee"){
+      const room=rooms.get(ws.room);
+      if(room?.source!==ws)return;
+      const sanitized={type:"media-capabilities"};
+      for(const key of ["screen","tvRequested","voiceRequested","tvActive","voiceActive"]){
+        if(typeof m[key]!=="boolean")return;
+        sanitized[key]=m[key];
+      }
+      room.mediaCapabilities=sanitized;
+      for(const listener of room.listeners.values())send(listener,sanitized);
       return;
     }
     if(m.type==="media-status"&&ws.role==="source"&&ws.room&&
