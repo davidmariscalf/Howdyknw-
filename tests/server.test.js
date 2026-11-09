@@ -174,6 +174,29 @@ test("bloquea websockets desde páginas externas con origen HTTPS ajeno",async()
   assert.equal(status,403);
 });
 
+test("cifrado E2EE: el servidor entrega solo sobre cifrado opaco y no permite PCM sin cifrar",async()=>{
+  const source=await client(),listener=await client();
+  try{
+    const srcJoin=message(source,m=>m.type==="joined");
+    source.send(JSON.stringify({type:"join",role:"source",transport:"pcm-e2ee",room:"SECUREROOM99"}));
+    assert.equal((await srcJoin).sourceTransport,"pcm-e2ee");
+    const listenerJoin=message(listener,m=>m.type==="joined");
+    listener.send(JSON.stringify({type:"join",role:"listener",room:"SECUREROOM99"}));
+    assert.equal((await listenerJoin).sourceTransport,"pcm-e2ee");
+    const sealed=Buffer.alloc(668,123).toString("base64");
+    const transmitted=message(listener,m=>m.type==="encrypted-frame");
+    source.send(JSON.stringify({type:"encrypted-frame",data:sealed}));
+    assert.equal((await transmitted).data,sealed);
+    let plaintextReceived=false;
+    listener.on("message",raw=>{
+      try{if(JSON.parse(raw.toString()).type==="audio-frame")plaintextReceived=true;}catch{}
+    });
+    source.send(JSON.stringify({type:"audio-frame",pcm:Buffer.alloc(640).toString("base64")}));
+    await new Promise(resolve=>setTimeout(resolve,80));
+    assert.equal(plaintextReceived,false);
+  }finally{source.terminate();listener.terminate();}
+});
+
 test("WebSocket rechaza códigos inválidos y roles falsos",async()=>{
   const ws=await client();
   try{
