@@ -68,6 +68,7 @@ public final class ScreenShareService extends Service {
     private Thread tvThread;
     private SecretKey key;
     private long previousImageTime;
+    private volatile boolean audioStarted=false;
     private String lastStatus = "Iniciando emisión autorizada";
     private boolean sharePlayback;
     private boolean shareVoice;
@@ -189,6 +190,7 @@ public final class ScreenShareService extends Service {
                         if("joined".equals(type)){
                             listeners.set(m.optInt("listenerCount",0));
                             startAudio();
+                            sendCapabilities();
                             updateStatus("Pantalla autorizada · "+
                                     (sharePlayback?"TV activado":"TV desactivado")+
                                     " · "+(shareVoice?"voz activada":"voz desactivada"));
@@ -218,6 +220,23 @@ public final class ScreenShareService extends Service {
         }
     }
 
+    private void sendCapabilities() {
+        try {
+            WebSocket ws=socket;
+            if(ws==null ||!running.get())return;
+            JSONObject m=new JSONObject();
+            m.put("type","media-capabilities");
+            m.put("screen",virtualDisplay!=null);
+            m.put("tvRequested",sharePlayback);
+            m.put("voiceRequested",shareVoice);
+            m.put("tvActive",tvRecorder!=null &&
+                    tvRecorder.getRecordingState()==AudioRecord.RECORDSTATE_RECORDING);
+            m.put("voiceActive",micRecorder!=null &&
+                    micRecorder.getRecordingState()==AudioRecord.RECORDSTATE_RECORDING);
+            ws.send(m.toString());
+        }catch(Exception ignored){}
+    }
+
     private void handleImage(ImageReader source) {
         Image img=null;
         try {
@@ -232,15 +251,25 @@ public final class ScreenShareService extends Service {
             int pixelStride=plane.getPixelStride(),rowStride=plane.getRowStride();
             if(pixelStride!=4 ||rowStride < WIDTH*4)return;
             // Row padding is normal for ImageReader RGBA frames.
-            Bitmap full=Bitmap.createBitmap(rowStride/pixelStride,HEIGHT,Bitmap.Config.ARGB_8888);
-            full.copyPixelsFromBuffer(plane.getBuffer());
-            Bitmap cropped=Bitmap.createBitmap(full,0,0,WIDTH,HEIGHT);
-            ByteArrayOutputStream jpeg=new ByteArrayOutputStream(35000);
-            cropped.compress(Bitmap.CompressFormat.JPEG,48,jpeg);
-            cropped.recycle();full.recycle();
-            byte[] bytes=jpeg.toByteArray();
-            if(bytes.length>85000)return; // Bounded encrypted preview.
-            sendMedia(ws,"screen-frame",null,bytes,"screen");
+            Bitmap full=null,cropped=null;
+            try {
+                full=Bitmap.createBitmap(rowStride/pixelStride,HEIGHT,Bitmap.Config.ARGB_8888);
+                full.copyPixelsFromBuffer(plane.getBuffer());
+                cropped=Bitmap.createBitmap(full,0,0,WIDTH,HEIGHT);
+                ByteArrayOutputStream jpeg=new ByteArrayOutputStream(35000);
+                cropped.compress(Bitmap.CompressFormat.JPEG,45,jpeg);
+                byte[] bytes=jpeg.toByteArray();
+                if(bytes.length>85000){
+                    jpeg.reset();
+                    cropped.compress(Bitmap.CompressFormat.JPEG,27,jpeg);
+                    bytes=jpeg.toByteArray();
+                }
+                if(bytes.length>85000)return; // Bounded encrypted preview.
+                sendMedia(ws,"screen-frame",null,bytes,"screen");
+            }finally{
+                if(cropped!=null)cropped.recycle();
+                if(full!=null)full.recycle();
+            }
         }catch(Exception ignored){
             // Unsupported capture or DRM content can be black/empty; never bypass.
         }finally{
@@ -249,7 +278,8 @@ public final class ScreenShareService extends Service {
     }
 
     private synchronized void startAudio() {
-        if(!running.get()||micThread!=null)return;
+        if(!running.get()||audioStarted)return;
+        audioStarted=true;
         // Separately capture public playback audio (only apps that allow capture).
         if(sharePlayback&&Build.VERSION.SDK_INT>=29){
             try {
@@ -283,6 +313,7 @@ public final class ScreenShareService extends Service {
             }
         }
         if(!shareVoice) {
+            sendCapabilities();
             updateStatus("Compartiendo imagen "+
                 (sharePlayback?"y sonido reproducido por apps compatibles":"sin audio")+
                 " · micrófono de voz DESACTIVADO");
@@ -299,6 +330,7 @@ public final class ScreenShareService extends Service {
         }catch(Exception ignored){
             updateStatus("No se pudo iniciar el canal de voz.");
         }
+        sendCapabilities();
     }
 
     private void audioLoop(AudioRecord input,String kind) {
