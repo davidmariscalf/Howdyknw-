@@ -340,6 +340,19 @@ document.addEventListener("visibilitychange",()=>{
 });
 $("startListener").addEventListener("click",()=>{
   const room=$("listenerRoom").value.trim().toUpperCase();
+  let encryptedStream=false,invalidKeyAlerted=false,decryptQueue=Promise.resolve(),pendingDecrypt=0;
+  const enableEncryptedMode=()=>{
+    encryptedStream=true;
+    const secret=$("listenerSecret").value.trim();
+    if(!HowdyE2EE.validSecret(secret)){
+      listenerKeyPromise=null;
+      setStatus("listener","Audio CIFRADO: introduce la clave de audio privada (mínimo 16 caracteres) y reconecta.","error");
+      return;
+    }
+    listenerKeyPromise=HowdyE2EE.deriveKey(secret,room);
+    void listenerKeyPromise.catch(error=>setStatus("listener","Clave no disponible: "+error.message,"error"));
+    setStatus("listener","Audio cifrado: verificando clave y esperando tramas.","live");
+  };
   if(!ROOM_PATTERN.test(room))return setStatus("listener","Introduce el código de sala correcto.","error");
   $("startListener").disabled=true;$("stopListener").disabled=false;
   setNativeMode(false);
@@ -356,15 +369,40 @@ $("startListener").addEventListener("click",()=>{
       const msg=JSON.parse(event.data);
       if(msg.type==="error"){closeListener();return setStatus("listener",msg.message,"error");}
       if(msg.type==="joined"){
-        setNativeMode(msg.sourceTransport==="pcm16");
+        encryptedStream=msg.sourceTransport==="pcm-e2ee";
+        setNativeMode(msg.sourceTransport==="pcm16"||encryptedStream);
+        if(encryptedStream)enableEncryptedMode();
         if(msg.sourceTransport==="text")setStatus("listener","Conectado a modo dictado: se enviará TEXTO, no audio.","live");
         else if(!nativeAudioMode)setStatus("listener",msg.sourceOnline?"Conectado. Esperando sonido...":"Sala abierta; esperando el micrófono.");
       }
       if(msg.type==="source-mode"){
-        setNativeMode(msg.transport==="pcm16");
+        encryptedStream=msg.transport==="pcm-e2ee";
+        listenerKeyPromise=null;
+        setNativeMode(msg.transport==="pcm16"||encryptedStream);
+        if(encryptedStream)enableEncryptedMode();
         if(msg.transport==="text")setStatus("listener","Conectado a modo dictado: esperando texto.","live");
       }
       if(msg.type==="transcript"&&msg.audioAvailable===false)showRemoteTranscript(msg.text);
+      if(msg.type==="encrypted-frame"&&encryptedStream){
+        if(listenerKeyPromise&&pendingDecrypt<8){
+          pendingDecrypt++;
+          decryptQueue=decryptQueue.then(async()=>{
+            const key=await listenerKeyPromise;
+            const raw=await HowdyE2EE.decryptFrame(key,msg.data);
+            if(session.listener!==ws)return;
+            if(pcmPlayer?.play(HowdyE2EE.rawToPcmBase64(raw))){
+              if(pcmPlayer.frames===1)setStatus("listener","● Audio descifrado de extremo a extremo.","live");
+              if(pcmPlayer.frames%25===0)$("listenerMetrics").textContent=
+                "Audio cifrado recibido: "+pcmPlayer.frames+" tramas.";
+            }
+          }).catch(error=>{
+            if(session.listener===ws&&!invalidKeyAlerted){
+              invalidKeyAlerted=true;
+              setStatus("listener","No se puede descifrar el audio. Comprueba la clave compartida.","error");
+            }
+          }).finally(()=>pendingDecrypt--);
+        }
+      }
       if(msg.type==="audio-frame"&&nativeAudioMode){
         if(pcmPlayer?.play(msg.pcm)){
           if(pcmPlayer.frames===1)setStatus("listener","Recibiendo audio PCM en directo.","live");
