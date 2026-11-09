@@ -183,6 +183,16 @@ wss.on("connection",ws=>{
       }
       return;
     }
+    if(m.type==="media-status"&&ws.role==="source"&&ws.room&&
+       ws.audioTransport==="pcm-e2ee"&&typeof m.text==="string"){
+      const room=rooms.get(ws.room);
+      if(room?.source!==ws)return;
+      const line=m.text.trim().slice(0,180);
+      if(!line)return;
+      for(const listener of room.listeners.values())send(listener,
+        {type:"media-status",text:line});
+      return;
+    }
     // MediaProjection opt-in stream: AES-GCM ciphertext only, with distinct
     // authenticated voice/TV audio channels and encrypted screen JPEG previews.
     if((m.type==="media-frame"||m.type==="screen-frame")&&
