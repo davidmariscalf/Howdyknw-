@@ -34,6 +34,7 @@ jobs:
           node --check public/pcm-playback.js
           node --check public/pcm-capture.js
           node --check public/e2ee.js
+          node --check public/pairing.js
           node --check public/test-tone.js
           node --check tizen-tv/app.js
           node --check public/pcm-playback.js
