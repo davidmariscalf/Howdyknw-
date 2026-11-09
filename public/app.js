@@ -60,6 +60,8 @@ function clearScreenAndChannels(){
   $("tvAudioLevel").value=0;
   $("voiceAudioState").textContent="Sin voz capturada";
   $("voiceAudioLevel").value=0;
+  $("tvAudioVolume").disabled=false;
+  $("voiceAudioVolume").disabled=false;
   $("screenAudioStatus").textContent="No se ha iniciado una sesión de pantalla y audio independiente.";
 }
 volumeControl.addEventListener("input",applyListenerVolume);
@@ -579,6 +581,22 @@ $("startListener").addEventListener("click",()=>{
         if(msg.transport==="text")setStatus("listener","Conectado a modo dictado: esperando texto.","live");
       }
       if(msg.type==="transcript"&&msg.audioAvailable===false)showRemoteTranscript(msg.text);
+      if(msg.type==="media-capabilities"&&session.listener===ws){
+        const tvEnabled=msg.tvRequested===true;
+        const voiceEnabled=msg.voiceRequested===true;
+        $("screenState").textContent=msg.screen?
+          "● Captura autorizada; esperando imágenes":"La TV no tiene una proyección activa";
+        $("tvAudioState").textContent=!tvEnabled?
+          "Desactivado por la persona que comparte":
+          msg.tvActive?"Captura de reproducción iniciada; aún sin señal verificada":
+          "La TV no ha podido iniciar la captura de reproducción";
+        $("voiceAudioState").textContent=!voiceEnabled?
+          "Desactivado por la persona que comparte":
+          msg.voiceActive?"Micrófono iniciado; aún sin señal verificada":
+          "Android no ha podido abrir el micrófono";
+        $("tvAudioVolume").disabled=!tvEnabled;
+        $("voiceAudioVolume").disabled=!voiceEnabled;
+      }
       if(msg.type==="media-status"&&typeof msg.text==="string"){
         $("screenAudioStatus").textContent=msg.text.slice(0,180);
       }
