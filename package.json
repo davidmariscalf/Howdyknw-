@@ -1,11 +1,11 @@
 {
   "name": "howdyknw",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "private": true,
   "description": "TV audio broadcaster for accessible microphones on Android TV and browsers, plus privacy traffic analyzer",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/report-utils.js && node --check public/pcm-playback.js && node --check public/pcm-capture.js && node --check public/experiments.js && node --check tizen-tv/app.js && node --check scripts/remote-server.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/report-utils.js && node --check public/pcm-playback.js && node --check public/pcm-capture.js && node --check public/experiments.js && node --check tizen-tv/app.js && node --check scripts/remote-server.js && node --check public/e2ee.js",
     "test": "node --test tests/*.test.js",
     "remote": "node scripts/remote-server.js"
   },
