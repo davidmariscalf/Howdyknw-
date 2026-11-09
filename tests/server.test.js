@@ -233,6 +233,30 @@ test("screen streaming sends only encrypted preview and separate audio channels 
     assert.equal(leaked,false);
   }finally{source.terminate();listener.terminate();other.terminate();}
 });
+test("media capabilities reach late viewers, never trust malformed claims, and expire on source disconnect",async()=>{
+  const code="CAPTESTROOM88",src=await client(),view=await client();
+  try{
+    const sourceJoined=message(src,m=>m.type==="joined");
+    src.send(JSON.stringify({type:"join",role:"source",transport:"pcm-e2ee",room:code}));
+    await sourceJoined;
+    const good={type:"media-capabilities",screen:true,tvRequested:true,
+      voiceRequested:false,tvActive:true,voiceActive:false};
+    src.send(JSON.stringify(good));
+    // Do not trust strings pretending to be booleans.
+    const bad={...good,voiceActive:"true"};
+    src.send(JSON.stringify(bad));
+    const viewJoined=message(view,m=>m.type==="joined");
+    const metadata=message(view,m=>m.type==="media-capabilities");
+    view.send(JSON.stringify({type:"join",role:"listener",room:code}));
+    await viewJoined;
+    assert.deepEqual(await metadata,good);
+    assert.deepEqual(rooms.get(code).mediaCapabilities,good);
+    const offline=message(view,m=>m.type==="source-offline");
+    src.close();await offline;
+    assert.equal(rooms.get(code).mediaCapabilities,null);
+  }finally{src.terminate();view.terminate();}
+});
+
 test("una conexión sin sala se cierra en el tiempo permitido",async()=>{
   const idle=await client();
   try{
