@@ -16,11 +16,13 @@ Proyecto multisoporte para estudiar el tráfico de red de televisores propios y 
 
 El [informe de auditoría](docs/AUDIT_2026-11-09.md) distingue las pruebas automáticas de lo que **todavía requiere comprobarse en dispositivos físicos**.
 
-## Nueva función: pantalla TV y audio por separado (Android TV 1.5)
+## Nueva función: pantalla TV y audio por separado (Android TV 1.5.1)
 
-La APK 1.5 añade un botón **COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO**, que abre el diálogo oficial de Android. Solo tras autorizarlo inicia un **servicio de captura visible** con notificación permanente y acción «DETENER AHORA».
+La APK 1.5.1 incorpora un botón **COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO**, que abre el diálogo oficial de Android. Solo tras autorizarlo inicia un **servicio de captura visible** con notificación permanente y acción «DETENER AHORA».
 
-En la web del receptor aparecen una vista previa cifrada de la imagen de la TV (JPEG **aprox. 1 imagen/s**, no vídeo fluido) y dos controles independientes:
+La voz del micrófono viene **desactivada por defecto**, y puedes compartir pantalla sin audio. Los canales disponibles se muestran antes de recibir sonido. La reproducción usa un único AudioContext para mejorar estabilidad y recuperarse tras desconexiones.
+
+En la web del receptor aparecen una vista previa cifrada de la imagen de la TV (JPEG **1 imagen/s o hasta 2 imágenes/s opcionales**, no vídeo fluido) y dos controles independientes:
 
 - **Sonido de la televisión**: entrada de reproducción de apps Android que permiten `AudioPlaybackCapture`. No es sonido de todo el sistema ni de HDMI protegido.
 - **Voz del micrófono**: entrada real autorizada. Puede captar por el aire también los altavoces de la TV, de modo que **no es separación perfecta de voz y música**.
