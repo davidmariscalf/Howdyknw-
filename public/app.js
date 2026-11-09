@@ -5,6 +5,13 @@ const session={source:null,listener:null,stream:null,relayContext:null,peers:new
 let pcmPlayer=null;
 let pcmSource=null;
 let nativeAudioMode=false;
+let listenerKeyPromise=null;
+$("sourceSecret").value=HowdyE2EE.makeSecret();
+$("newAudioKey").addEventListener("click",()=>{
+  if(session.stream)return;
+  $("sourceSecret").value=HowdyE2EE.makeSecret();
+  setStatus("source","Clave de audio nueva. Compártela únicamente con el receptor.");
+});
 const volumeControl=$("listenerVolume");
 function applyListenerVolume(){
   const volume=Number(volumeControl.value)/100;
@@ -133,6 +140,9 @@ function closeSource(){
     session.relayContext=null;
   }
   $("relayMode").disabled=false;
+  $("encryptAudio").disabled=false;
+  $("sourceSecret").disabled=false;
+  $("newAudioKey").disabled=false;
   for(const entry of session.peers.values())entry.pc.close();
   session.peers.clear();
   session.stream?.getTracks().forEach(t=>t.stop());session.stream=null;
@@ -143,6 +153,7 @@ function closeSource(){
 }
 function closeListener(){
   pcmPlayer?.stop();pcmPlayer=null;
+  listenerKeyPromise=null;
   setNativeMode(false);
   session.incoming?.pc.close();session.incoming=null;
   $("audioPlayer").srcObject=null;
@@ -173,7 +184,10 @@ browserRequirements();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
   const viaRelay=$("relayMode").checked;
-  let relayListeners=0;
+  const encryptedMode=viaRelay&&$("encryptAudio").checked;
+  let sourceKey=null,cryptoQueue=Promise.resolve(),queuedFrames=0,relayListeners=0;
+  if(encryptedMode&&!HowdyE2EE.validSecret($("sourceSecret").value.trim()))
+    return setStatus("source","El cifrado requiere una clave independiente de 16 caracteres o más.","error");
   if(!ROOM_PATTERN.test(room))return setStatus("source","Introduce un código de 8 a 16 caracteres.","error");
   if(!$("consentMic").checked)return setStatus("source","Confirma primero que la transmisión se realiza con conocimiento de los participantes.","error");
   if(!navigator.mediaDevices?.getUserMedia)return setStatus("source","El micrófono exige HTTPS o localhost.","error");
@@ -194,13 +208,20 @@ $("startSource").addEventListener("click",async()=>{
     if(session.relayContext){void session.relayContext.close().catch(()=>{});session.relayContext=null;}
     $("startSource").disabled=false;return setStatus("source","No se ha activado el micrófono: "+err.message,"error");
   }
+  if(encryptedMode){
+    try{sourceKey=await HowdyE2EE.deriveKey($("sourceSecret").value.trim(),room);}
+    catch(err){closeSource();return setStatus("source","No se pudo derivar la clave de audio: "+err.message,"error");}
+  }
   for(const track of session.stream.getAudioTracks()){track.addEventListener("ended",()=>{if(session.stream){closeSource();setStatus("source","El sistema detuvo el micrófono.","error");}},{once:true});}
   $("micNotice").hidden=false;$("stopSource").disabled=false;
   $("relayMode").disabled=true;
+  $("encryptAudio").disabled=true;
+  $("sourceSecret").disabled=true;
+  $("newAudioKey").disabled=true;
   $("sourceRoom").value=room;
   const ws=wsOpen();session.source=ws;
   setStatus("source","Micrófono encendido. Conectando...","live");
-  ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",room,transport:viaRelay?"pcm16":"webrtc"}));
+  ws.onopen=()=>ws.send(JSON.stringify({type:"join",role:"source",room,transport:encryptedMode?"pcm-e2ee":viaRelay?"pcm16":"webrtc"}));
   ws.onmessage=async event=>{
     if(session.source!==ws)return;
     try{
@@ -221,12 +242,25 @@ $("startSource").addEventListener("click",async()=>{
         if(viaRelay){
           try{
             pcmSource=new HowdyPcmCapture.Capture(session.stream,bytes=>{
-              if(HowdyPcmCapture.canRelay(relayListeners,ws.readyState===WebSocket.OPEN,ws.bufferedAmount)){
+              if(!HowdyPcmCapture.canRelay(relayListeners,ws.readyState===WebSocket.OPEN,ws.bufferedAmount))return;
+              if(!encryptedMode){
                 ws.send(JSON.stringify({type:"audio-frame",pcm:HowdyPcmCapture.toBase64(bytes)}));
+                return;
               }
+              if(queuedFrames>=5)return;
+              queuedFrames++;
+              cryptoQueue=cryptoQueue.then(async()=>{
+                const data=await HowdyE2EE.encryptFrame(sourceKey,bytes);
+                if(HowdyPcmCapture.canRelay(relayListeners,ws.readyState===WebSocket.OPEN,ws.bufferedAmount))
+                  ws.send(JSON.stringify({type:"encrypted-frame",data}));
+              }).catch(e=>{
+                if(session.source===ws){closeSource();setStatus("source","Error de cifrado: "+e.message,"error");}
+              }).finally(()=>queuedFrames--);
             },session.relayContext);
             await pcmSource.start();
-            setStatus("source",relayListeners>0?"● Retransmitiendo audio por WSS. Sala: "+room:"● Micrófono activo; esperando receptor. Sin enviar muestras.","live");
+            setStatus("source",relayListeners>0?
+              (encryptedMode?"● Transmitiendo audio cifrado de extremo a extremo. Sala: ":"● Retransmitiendo audio por WSS. Sala: ")+room:
+              "● Micrófono activo; esperando receptor. Sin enviar muestras.","live");
           }catch(err){
             closeSource();
             return setStatus("source","El navegador no admite retransmisión PCM: "+err.message,"error");
