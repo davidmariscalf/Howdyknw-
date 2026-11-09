@@ -28,3 +28,20 @@ Cuando getUserMedia no permita el micrófono, **ABRIR TECLADO** enfoca un campo 
 **COMPARTIR TEXTO** requiere consentimiento y una sala configurada. Solo envía las palabras visibles al receptor Howdyknw; no descarga ni transmite el audio interno utilizado por el reconocimiento de voz. El receptor muestra «No es una grabación de audio».
 
 Ninguna aplicación obtiene más permisos al declararse falsamente teclado. El acceso a audio depende de las APIs y del firmware. La app Tizen todavía necesita empaquetado, firma y validación sobre una Samsung física.
+
+
+## Firmar e instalar el paquete .wgt (Samsung TV real)
+
+Una Samsung TV **no acepta un paquete sin firma válida**. La cuenta Samsung Developers y el certificado de distribución asociado al DUID del televisor son requisitos reales; no es posible generar desde GitHub una firma equivalente a la del propietario. Nunca subas archivos .p12, perfiles ni contraseñas al repositorio.
+
+1. Instala Tizen Studio, la Samsung TV Extension y la Samsung Certificate Extension.
+2. Abre *Tools > Certificate Manager*, selecciona **Samsung > TV** y crea un perfil de autor y distribuidor que incluya el DUID de tu TV.
+3. En tu ordenador, ejecuta `bash tizen-tv/package-with-profile.sh TU_PERFIL_SAMSUNG` desde el repositorio; este script invoca `tizen build-web` y `tizen package -t wgt -s TU_PERFIL_SAMSUNG`.
+4. Activa el modo desarrollador en el televisor y permite instalaciones desde Tizen Studio. Conéctalo y despliega el WGT desde Device Manager, o con las herramientas Tizen/SDB.
+5. Abre la aplicación y valida sus permisos de Internet y micrófono en el modelo real.
+
+GitHub Actions genera únicamente un **ZIP con el proyecto fuente verificado** en el flujo [Samsung Tizen source checks](https://github.com/davidmariscalf/Howdyknw-/actions/workflows/samsung-tizen.yml). Ese ZIP no es un WGT firmado y no debe presentarse como una aplicación Samsung instalable.
+
+Fuentes oficiales:
+- https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html
+- https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/command-line-interface.html
