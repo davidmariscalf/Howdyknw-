@@ -138,23 +138,33 @@ public final class MainActivity extends Activity {
         root.addView(title);
         root.addView(label("Transmite el micrófono disponible en este dispositivo a tu sala de Howdyknw. Solo funciona mientras esta pantalla está abierta y activada.", 17, Color.WHITE));
 
-        root.addView(label("Dirección WSS del servidor (HTTPS privado o certificado válido)", 16, 0xFFB8D5DF));
+        LinearLayout advancedSetup=new LinearLayout(this);
+        advancedSetup.setOrientation(LinearLayout.VERTICAL);
+        advancedSetup.setVisibility(View.GONE);
+        Button advancedToggle=new Button(this);
+        advancedToggle.setText("CONFIGURACIÓN MANUAL Y SERVIDOR");
+        advancedToggle.setOnClickListener(v -> {
+            boolean show=advancedSetup.getVisibility()!=View.VISIBLE;
+            advancedSetup.setVisibility(show?View.VISIBLE:View.GONE);
+            advancedToggle.setText(show?"OCULTAR CONFIGURACIÓN MANUAL Y SERVIDOR":"CONFIGURACIÓN MANUAL Y SERVIDOR");
+        });
+        advancedSetup.addView(label("Dirección WSS del servidor (HTTPS privado o certificado válido)", 16, 0xFFB8D5DF));
         urlInput = new EditText(this);
         urlInput.setSingleLine(true);
         urlInput.setText("wss://howdyknw-production.up.railway.app/");
         urlInput.setTextColor(Color.WHITE);
         urlInput.setHintTextColor(0xFF8296A8);
         urlInput.setHint("wss://equipo.ts.net/");
-        root.addView(urlInput);
+        advancedSetup.addView(urlInput);
 
-        root.addView(label("Código de sala (8–16 letras/números)", 16, 0xFFB8D5DF));
+        advancedSetup.addView(label("Código de sala (8–16 letras/números)", 16, 0xFFB8D5DF));
         roomInput = new EditText(this);
         roomInput.setSingleLine(true);
         roomInput.setTextColor(Color.WHITE);
         roomInput.setHint("El mismo código que en el móvil receptor");
         roomInput.setHintTextColor(0xFF8296A8);
-        root.addView(roomInput);
-        root.addView(label("CLAVE DE AUDIO CIFRADO (no es el código de sala)", 16, 0xFF91EBDD));
+        advancedSetup.addView(roomInput);
+        advancedSetup.addView(label("CLAVE DE AUDIO CIFRADO (no es el código de sala)", 16, 0xFF91EBDD));
         audioSecretInput = new EditText(this);
         audioSecretInput.setSingleLine(true);
         audioSecretInput.setTextColor(Color.WHITE);
@@ -162,23 +172,23 @@ public final class MainActivity extends Activity {
         audioSecretInput.setTransformationMethod(PasswordTransformationMethod.getInstance());
         audioSecretInput.setHintTextColor(0xFF8296A8);
         audioSecretInput.setHint("16-128 caracteres; solo para el receptor autorizado");
-        root.addView(audioSecretInput);
+        advancedSetup.addView(audioSecretInput);
         CheckBox showPrivateKey=new CheckBox(this);
         showPrivateKey.setText("Mostrar clave privada solo para configurarla");
         showPrivateKey.setTextColor(0xFFB8D5DF);
-        root.addView(showPrivateKey);
+        advancedSetup.addView(showPrivateKey);
         showPrivateKey.setOnCheckedChangeListener((button,checked)->
                 audioSecretInput.setTransformationMethod(checked?SingleLineTransformationMethod.getInstance():
                         PasswordTransformationMethod.getInstance()));
         Button regenerateSecret = new Button(this);
         regenerateSecret.setText("GENERAR OTRA CLAVE PRIVADA");
-        root.addView(regenerateSecret);
+        advancedSetup.addView(regenerateSecret);
         regenerateSecret.setOnClickListener(v -> {
             if (!running.get() && socket == null) {
                 audioSecretInput.setText(AudioCrypto.newSecret());
             }
         });
-        root.addView(label("Escribe esta clave también en el receptor web. La clave NO se envía al servidor; sin ella no se puede escuchar. No compartas la clave con terceros.", 14, 0xFFBBCEDB));
+        advancedSetup.addView(label("Escribe esta clave también en el receptor web. La clave NO se envía al servidor; sin ella no se puede escuchar. No compartas la clave con terceros.", 14, 0xFFBBCEDB));
         Button quickPair = new Button(this);
         quickPair.setText("CREAR SESIÓN RÁPIDA · MOSTRAR QR");
         root.addView(quickPair);
@@ -190,6 +200,8 @@ public final class MainActivity extends Activity {
         quickPairQr.setContentDescription("Código QR privado: escanéalo solo con un dispositivo autorizado");
         quickPairQr.setVisibility(View.GONE);
         root.addView(quickPairQr);
+        root.addView(advancedToggle);
+        root.addView(advancedSetup);
         quickPair.setOnClickListener(v -> makeQuickPair());
         TextWatcher invalidateQrOnEdit=new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence text,int start,int count,int after){}
@@ -206,24 +218,34 @@ public final class MainActivity extends Activity {
         urlInput.addTextChangedListener(invalidateQrOnEdit);
 
 
+        LinearLayout micTools=new LinearLayout(this);
+        micTools.setOrientation(LinearLayout.VERTICAL);
+        micTools.setVisibility(View.GONE);
+        Button micToggle=new Button(this);
+        micToggle.setText("MODO SOLO MICRÓFONO Y RECUPERACIÓN");
+        micToggle.setOnClickListener(v -> {
+            boolean show=micTools.getVisibility()!=View.VISIBLE;
+            micTools.setVisibility(show?View.VISIBLE:View.GONE);
+            micToggle.setText(show?"OCULTAR MODO SOLO MICRÓFONO Y RECUPERACIÓN":"MODO SOLO MICRÓFONO Y RECUPERACIÓN");
+        });
         TextView consent = label("Al pulsar INICIAR confirmas que todas las personas presentes conocen y aceptan esta transmisión de audio.", 16, 0xFFFFCC9C);
-        root.addView(consent);
+        micTools.addView(consent);
 
         startButton = new Button(this);
         startButton.setText("INICIAR AUDIO · SOLICITAR PERMISO");
-        root.addView(startButton);
+        micTools.addView(startButton);
         stopButton = new Button(this);
         stopButton.setText("DETENER Y APAGAR MICRÓFONO");
         stopButton.setEnabled(false);
-        root.addView(stopButton);
+        micTools.addView(stopButton);
         recoveryView = label("Si el micrófono falla, Howdyknw probará varias fuentes de audio autorizadas y ofrecerá opciones de recuperación.", 15, 0xFF9DCDE0);
-        root.addView(recoveryView);
+        micTools.addView(recoveryView);
         recoveryButton = new Button(this);
         recoveryButton.setText("REINTENTAR Y PROBAR OTRA ENTRADA");
-        root.addView(recoveryButton);
+        micTools.addView(recoveryButton);
         Button appSettingsButton = new Button(this);
         appSettingsButton.setText("ABRIR AJUSTES DEL PERMISO DE MICRÓFONO");
-        root.addView(appSettingsButton);
+        micTools.addView(appSettingsButton);
         recoveryButton.setOnClickListener(v -> {
             if (pendingStart) return;
             if (socket != null || running.get()) stopStreaming("Reintento solicitado. Deteniendo entrada anterior.");
@@ -235,6 +257,8 @@ public final class MainActivity extends Activity {
         });
         appSettingsButton.setOnClickListener(v -> openMicrophoneSettings());
 
+        root.addView(micToggle);
+        root.addView(micTools);
         statusView = label("INACTIVO · EL MICRÓFONO NO ESTÁ TRANSMITIENDO", 18, 0xFFCCDDE7);
         root.addView(statusView);
         micView = label("Comprobando entradas de audio…", 14, 0xFF93B0C2);
@@ -278,10 +302,20 @@ public final class MainActivity extends Activity {
         });
 
 
+        LinearLayout keyboardTools=new LinearLayout(this);
+        keyboardTools.setOrientation(LinearLayout.VERTICAL);
+        keyboardTools.setVisibility(View.GONE);
+        Button keyboardToggle=new Button(this);
+        keyboardToggle.setText("TECLADO Y DICTADO (SOLO TEXTO)");
+        keyboardToggle.setOnClickListener(v -> {
+            boolean show=keyboardTools.getVisibility()!=View.VISIBLE;
+            keyboardTools.setVisibility(show?View.VISIBLE:View.GONE);
+            keyboardToggle.setText(show?"OCULTAR TECLADO Y DICTADO (SOLO TEXTO)":"TECLADO Y DICTADO (SOLO TEXTO)");
+        });
         TextView keyboardHeader = label("ALTERNATIVA: TECLADO Y DICTADO DEL SISTEMA", 23, 0xFF86E8D1);
         keyboardHeader.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        root.addView(keyboardHeader);
-        root.addView(label("Si Android bloquea la captura PCM, el teclado oficial de la TV puede ofrecer un botón de micrófono para dictar. Esta vía devuelve TEXTO, no el audio del micrófono. Algunos modelos no incluyen dictado.", 15, Color.WHITE));
+        keyboardTools.addView(keyboardHeader);
+        keyboardTools.addView(label("Si Android bloquea la captura PCM, el teclado oficial de la TV puede ofrecer un botón de micrófono para dictar. Esta vía devuelve TEXTO, no el audio del micrófono. Algunos modelos no incluyen dictado.", 15, Color.WHITE));
 
         dictationInput = new EditText(this);
         dictationInput.setSingleLine(false);
@@ -292,31 +326,33 @@ public final class MainActivity extends Activity {
         dictationInput.setHint("Aquí aparecerá el texto dictado o escrito manualmente.");
         dictationInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT
                 | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        root.addView(dictationInput);
+        keyboardTools.addView(dictationInput);
 
         Button systemKeyboard = new Button(this);
         systemKeyboard.setText("ABRIR TECLADO DE LA TV (DICTADO SI EXISTE)");
-        root.addView(systemKeyboard);
+        keyboardTools.addView(systemKeyboard);
         Button voiceIntent = new Button(this);
         voiceIntent.setText("PROBAR RECONOCIMIENTO DE VOZ DEL SISTEMA");
-        root.addView(voiceIntent);
+        keyboardTools.addView(voiceIntent);
 
         dictationConsent = new CheckBox(this);
         dictationConsent.setText("Confirmo que los presentes conocen y aceptan esta prueba y el envío del texto que seleccione compartir.");
         dictationConsent.setTextColor(0xFFFFD7B3);
-        root.addView(dictationConsent);
+        keyboardTools.addView(dictationConsent);
         shareTranscriptButton = new Button(this);
         shareTranscriptButton.setText("COMPARTIR SOLO EL TEXTO CON MI SALA");
-        root.addView(shareTranscriptButton);
+        keyboardTools.addView(shareTranscriptButton);
 
         dictationStatus = label("Texto local: aún no se ha compartido nada.", 14, 0xFF93B0C2);
-        root.addView(dictationStatus);
-        root.addView(label("IMPORTANTE: el reconocedor de voz del fabricante puede usar servidores externos. Howdyknw no recibe el audio que usa el teclado; solo comparte el texto si pulsas el botón anterior.", 13, 0xFF93B0C2));
+        keyboardTools.addView(dictationStatus);
+        keyboardTools.addView(label("IMPORTANTE: el reconocedor de voz del fabricante puede usar servidores externos. Howdyknw no recibe el audio que usa el teclado; solo comparte el texto si pulsas el botón anterior.", 13, 0xFF93B0C2));
 
         systemKeyboard.setOnClickListener(v -> showSystemKeyboard());
         voiceIntent.setOnClickListener(v -> launchSystemDictation());
         shareTranscriptButton.setOnClickListener(v -> shareTranscript());
 
+        root.addView(keyboardToggle);
+        root.addView(keyboardTools);
         startButton.setOnClickListener(v -> requestStart());
         stopButton.setOnClickListener(v -> stopStreaming("Micrófono desactivado manualmente."));
         setContentView(scroll);
