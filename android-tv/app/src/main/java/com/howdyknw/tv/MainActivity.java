@@ -15,6 +15,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.media.projection.MediaProjectionManager;
 import android.speech.RecognizerIntent;
 import android.view.inputmethod.InputMethodManager;
 import android.os.Build;
@@ -54,6 +55,8 @@ import okhttp3.WebSocketListener;
 public final class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 51;
     private static final int SPEECH_REQUEST = 52;
+    private static final int SCREEN_PROJECTION_REQUEST = 53;
+    private static final int SCREEN_AUDIO_PERMISSION_REQUEST = 54;
     private static final int SAMPLE_RATE = 16000;
     private static final int FRAME_BYTES = 640; // 20 ms mono PCM16 at 16kHz
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -79,6 +82,8 @@ public final class MainActivity extends Activity {
     private Button stopButton;
     private TextView recoveryView;
     private Button recoveryButton;
+    private Button startScreenButton;
+    private Button stopScreenButton;
     private int preferredAudioSource = 0;
     private boolean pendingStart = false;
     private String roomCode;
@@ -187,7 +192,24 @@ public final class MainActivity extends Activity {
         root.addView(levelView);
         viewerView = label("Receptores conectados a la sala: 0", 16, 0xFFB6E9D9);
         root.addView(viewerView);
-        root.addView(label("No hay grabación local ni ejecución en segundo plano. El audio del mando o del asistente puede estar restringido por el fabricante; la app no elude esos límites.", 14, 0xFF93B0C2));
+        root.addView(label("No hay grabación local en el modo micrófono. La función de pantalla usa un servicio visible que se puede detener en cualquier momento; el audio del mando reservado al asistente puede seguir restringido.", 14, 0xFF93B0C2));
+
+        TextView screenTitle=label("COMPARTIR PANTALLA Y DISTINGUIR AUDIO",23,0xFF86E8D1);
+        screenTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        root.addView(screenTitle);
+        root.addView(label("Solo después de aceptar el diálogo de Android: muestra imágenes de la pantalla en el receptor y prueba dos pistas separadas: VOZ (micrófono) y SONIDO DE LA TV (reproducción que las aplicaciones permiten capturar). La pantalla puede compartirse mientras ves otra aplicación, con notificación persistente y botón DETENER. Contenido DRM/HDMI puede quedar negro y ciertas apps no permiten capturar audio. Sin guardar imágenes ni sonido.",15,Color.WHITE));
+        startScreenButton=new Button(this);
+        startScreenButton.setText("COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO");
+        root.addView(startScreenButton);
+        stopScreenButton=new Button(this);
+        stopScreenButton.setText("DETENER COMPARTICIÓN DE PANTALLA Y AUDIO");
+        root.addView(stopScreenButton);
+        startScreenButton.setOnClickListener(v->requestScreenShare());
+        stopScreenButton.setOnClickListener(v->{
+            stopService(new Intent(this,ScreenShareService.class));
+            setStatus("Se solicitó detener pantalla y audio. Comprueba que desaparece la notificación.",false);
+        });
+
 
         TextView keyboardHeader = label("ALTERNATIVA: TECLADO Y DICTADO DEL SISTEMA", 23, 0xFF86E8D1);
         keyboardHeader.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -286,8 +308,53 @@ public final class MainActivity extends Activity {
         connect(url);
     }
 
+    private void requestScreenShare() {
+        if(running.get() ||socket!=null)stopStreaming(
+                "Modo micrófono detenido antes de iniciar captura de pantalla separada.");
+        String room=roomInput.getText().toString().trim().toUpperCase(Locale.ROOT);
+        String secret=audioSecretInput.getText().toString().trim();
+        String url=urlInput.getText().toString().trim();
+        if(!room.matches("[A-Z0-9]{8,16}") || !AudioCrypto.validSecret(secret)){
+            setStatus("Para compartir pantalla introduce una sala y clave privada válidas.",false);
+            return;
+        }
+        try{
+            URI u=URI.create(url);
+            if(!"wss".equalsIgnoreCase(u.getScheme())||u.getHost()==null||
+                    u.getUserInfo()!=null||u.getQuery()!=null||u.getFragment()!=null||
+                    (u.getPath()!=null&&!u.getPath().isEmpty()&&!"/".equals(u.getPath())))
+                throw new IllegalArgumentException();
+        }catch(Exception ex){
+            setStatus("Indica una dirección WSS segura válida para compartir pantalla.",false);
+            return;
+        }
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                    SCREEN_AUDIO_PERMISSION_REQUEST);
+            return;
+        }
+        MediaProjectionManager manager=(MediaProjectionManager)
+                getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        if(manager==null){
+            setStatus("La TV no ofrece la API MediaProjection.",false);
+            return;
+        }
+        try {
+            startActivityForResult(manager.createScreenCaptureIntent(),SCREEN_PROJECTION_REQUEST);
+            setStatus("Confirma la compartición en el diálogo de Android. Puedes cancelarla.",false);
+        }catch(SecurityException | ActivityNotFoundException ex){
+            setStatus("Este Android TV no permite pedir compartir pantalla.",false);
+        }
+    }
+
     @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(code, permissions, results);
+        if(code==SCREEN_AUDIO_PERMISSION_REQUEST){
+            if(results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED)
+                requestScreenShare();
+            else setStatus("No se compartió nada: permiso de audio denegado.",false);
+            return;
+        }
         if (code != PERMISSION_REQUEST) return;
         pendingStart = false;
         if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
@@ -520,6 +587,29 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode==SCREEN_PROJECTION_REQUEST){
+            if(resultCode!=RESULT_OK||data==null){
+                setStatus("Compartición de pantalla cancelada; nada se ha transmitido.",false);
+                return;
+            }
+            Intent service=new Intent(this,ScreenShareService.class)
+                    .setAction(ScreenShareService.ACTION_START)
+                    .putExtra(ScreenShareService.EXTRA_RESULT,resultCode)
+                    .putExtra(ScreenShareService.EXTRA_DATA,data)
+                    .putExtra(ScreenShareService.EXTRA_URL,urlInput.getText().toString().trim())
+                    .putExtra(ScreenShareService.EXTRA_ROOM,
+                            roomInput.getText().toString().trim().toUpperCase(Locale.ROOT))
+                    .putExtra(ScreenShareService.EXTRA_SECRET,
+                            audioSecretInput.getText().toString().trim());
+            try{
+                if(Build.VERSION.SDK_INT>=26)startForegroundService(service);
+                else startService(service);
+                setStatus("Compartición autorizada. Notificación persistente activa; abre ahora el contenido en la TV.",true);
+            }catch(Exception ex){
+                setStatus("Android no permitió iniciar la compartición: "+ex.getClass().getSimpleName(),false);
+            }
+            return;
+        }
         if (requestCode != SPEECH_REQUEST) return;
         if (resultCode != RESULT_OK || data == null) {
             dictationStatus.setText("Dictado cancelado o no disponible. Nada compartido.");
