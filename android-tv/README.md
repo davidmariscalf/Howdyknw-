@@ -1,6 +1,6 @@
 # Howdyknw Native TV Audio
 
-Aplicación Android TV / Google TV (versión 1.3) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
+Aplicación Android TV / Google TV (versión 1.4) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
 
 No es una solución para capturar el micrófono del mando que solo es accesible por el asistente del fabricante. No tiene servicios de arranque ni grabación en segundo plano; al abandonar la pantalla detiene el audio.
 
@@ -17,12 +17,27 @@ El APK resultante estará en app/build/outputs/apk/debug/app-debug.apk.
 1. Arranca el servidor raíz Howdyknw: npm install && npm start.
 2. Publica HTTPS mediante Tailscale Serve o un proxy privado con certificado válido.
 3. En un móvil/ordenador abre la web, pestaña Audio en directo, e introduce un código de sala de 8 a 16 caracteres en el receptor. Pulsa Escuchar ahora.
-4. En la TV instala la APK 1.3. Introduce la URL **wss://** del mismo servidor y el MISMO código de sala. La TV también muestra una **clave de audio independiente** de 32 caracteres: escríbela en el receptor web (campo «Clave de audio»).
+4. En la TV instala la APK 1.4. Introduce la URL **wss://** del mismo servidor y el MISMO código de sala. La TV también muestra una **clave de audio independiente** de 32 caracteres: escríbela en el receptor web (campo «Clave de audio»).
 5. Con todos los presentes informados, pulsa INICIAR AUDIO y acepta RECORD_AUDIO cuando el sistema lo solicite. La TV cifra cada trama PCM con AES-256-GCM antes de enviarla.
 6. La TV mostrará el dispositivo de entrada elegido, el estado TRANSMITIENDO y el nivel de entrada PCM. El receptor descifrará las tramas con la clave compartida, o mostrará error si no coincide.
 7. Pulsa DETENER; la transmisión se apaga. Al salir de la pantalla también se apaga.
 
 El servidor no conserva grabaciones ni las tramas de audio: retransmite a los oyentes presentes en la sala. En redes ajenas necesita permiso y una configuración de acceso adecuada.
+
+## Recuperación del micrófono (versión 1.4)
+
+La app incluye ahora un mecanismo visible y **voluntario** cuando no funciona el micrófono PCM:
+
+1. Al pulsar **INICIAR AUDIO**, solicita el permiso Android `RECORD_AUDIO` si hace falta. No hay captura antes de concederlo.
+2. Si el permiso existe, prueba secuencialmente las fuentes públicas de Android **MIC**, **VOICE_RECOGNITION** y **DEFAULT**. Libera cada `AudioRecord` fallido antes de probar el siguiente.
+3. Si hay un micrófono silenciado por Android, muestra instrucciones para revisar el interruptor de privacidad sin intentar cambiarlo.
+4. Si la entrada se inicia pero no se aprecia señal PCM durante varios segundos, aparece una indicación para hablar cerca del micrófono o pulsar **REINTENTAR Y PROBAR OTRA ENTRADA**. Este botón cambia el orden de fuentes y reconecta de forma visible.
+5. Si el permiso está denegado, pulsa **ABRIR AJUSTES DEL PERMISO DE MICRÓFONO**, revisa los permisos y vuelve a intentarlo.
+6. Si la TV no expone PCM, prueba **RECONOCIMIENTO DE VOZ DEL SISTEMA** o **ABRIR TECLADO DE LA TV**. Esas alternativas devuelven solamente texto y hay que pulsar **COMPARTIR SOLO EL TEXTO** para enviarlo al receptor.
+
+Esta recuperación **no puede activar un micrófono que Android no expone**, ni la entrada reservada del mando/asistente. Si las tres fuentes fallan o son silenciosas, es posible que un micrófono USB compatible o un teléfono cercano con permiso sea la única opción de audio real.
+
+El campo WSS se inicializa con el dominio público de Railway de Howdyknw. Debe corresponder a un servidor al que el receptor también se conecte, y la sala y clave cifrada deben coincidir.
 
 ## Límites técnicos
 
@@ -54,7 +69,7 @@ Documentación oficial:
 - https://developer.android.com/training/tv/get-started/onscreen-keyboard
 - https://developer.android.com/reference/android/speech/RecognizerIntent
 
-La compilación Android TV 1.3.0 de prueba está publicada como artefacto de GitHub Actions:
+La compilación Android TV 1.4.0 de prueba está publicada como artefacto de GitHub Actions:
 https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
 
 Las pruebas automáticas verifican la compilación, pero la compatibilidad con cada micrófono necesita una TV real. Samsung/Tizen tiene un módulo de texto separado.
