@@ -121,6 +121,9 @@ wss.on("connection",ws=>{
       const roomCode=String(m.room||"").toUpperCase().trim();
       const role=m.role;
       if(!/^[A-Z0-9]{8,16}$/.test(roomCode)||!["source","listener"].includes(role))return send(ws,{type:"error",message:"Sala o rol no válido"});
+      if(role==="source"&&REMOTE_MODE&&m.transport==="pcm16"){
+        return send(ws,{type:"error",message:"El servidor público exige cifrado de extremo a extremo: actualiza Howdyknw y configura la clave de audio"});
+      }
       const room=getRoom(roomCode);
       if(role==="source"&&room.source)return send(ws,{type:"error",message:"Esta sala ya tiene un micrófono activo"});
       if(role==="listener"&&room.listeners.size >= MAX_LISTENERS)return send(ws,{type:"error",message:"Sala llena: máximo 4 receptores"});
