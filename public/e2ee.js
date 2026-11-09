@@ -111,6 +111,14 @@
       this.key=key;
       this.recent=new Set();
     }
+    async decryptMedia(packet,kind){
+      const nonce=typeof packet==="string"?packet.slice(0,16):"";
+      if(this.recent.has(nonce))throw Error("Contenido multimedia repetido");
+      const result=await decryptMedia(this.key,packet,kind);
+      this.recent.add(nonce);
+      if(this.recent.size>8192)this.recent.delete(this.recent.values().next().value);
+      return result;
+    }
     async decryptFrame(packet,kind=null){
       if(typeof packet!=="string"||!/^[A-Za-z0-9+/]{891}=$/.test(packet))
         throw Error("Trama cifrada inválida");
