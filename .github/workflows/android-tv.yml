@@ -22,6 +22,11 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+      - name: Verify AES-256-GCM Android/browser interoperability vectors
+        run: |
+          mkdir -p /tmp/howdyknw-crypto-test
+          javac -d /tmp/howdyknw-crypto-test android-tv/app/src/main/java/com/howdyknw/tv/AudioCrypto.java android-tv/tests/AudioCryptoSmoke.java
+          java -cp /tmp/howdyknw-crypto-test com.howdyknw.tv.AudioCryptoSmoke
       - name: Build native Android TV debug APK
         run: gradle -p android-tv :app:assembleDebug --stacktrace
       - name: Upload APK
