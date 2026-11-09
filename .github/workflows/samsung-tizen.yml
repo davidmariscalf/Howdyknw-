@@ -1,0 +1,46 @@
+name: Samsung Tizen source checks
+on:
+  push:
+    paths:
+      - 'tizen-tv/**'
+      - '.github/workflows/samsung-tizen.yml'
+  workflow_dispatch:
+jobs:
+  validate-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript compatibility check
+        run: node --check tizen-tv/app.js
+      - name: Validate Tizen manifest and package source
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          root=Path("tizen-tv")
+          xml=ET.parse(root/"config.xml").getroot()
+          ns={"w":"http://www.w3.org/ns/widgets","tizen":"http://tizen.org/ns/widgets"}
+          assert xml.find("w:content",ns).attrib["src"]=="index.html"
+          assert xml.find("tizen:profile",ns).attrib["name"]=="tv"
+          privileges={node.attrib["name"] for node in xml.findall("tizen:privilege",ns)}
+          assert "http://tizen.org/privilege/internet" in privileges
+          required=["config.xml","index.html","style.css","app.js","README.md"]
+          for item in required:
+              assert (root/item).is_file(),item
+          assert 'src="app.js"' in (root/"index.html").read_text(encoding="utf-8")
+          assert 'href="style.css"' in (root/"index.html").read_text(encoding="utf-8")
+          Path("dist").mkdir(exist_ok=True)
+          with ZipFile("dist/howdyknw-samsung-tizen-unsigned-source.zip","w",ZIP_DEFLATED) as archive:
+              for file in required:
+                  archive.write(root/file,arcname=file)
+          print("Tizen source validated and bundled; NOT signed, NOT installable on real Samsung TV")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: howdyknw-samsung-tizen-unsigned-source
+          path: dist/howdyknw-samsung-tizen-unsigned-source.zip
+          if-no-files-found: error
