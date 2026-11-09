@@ -11,6 +11,7 @@
   <script src="/pcm-playback.js" defer></script>
   <script src="/pcm-capture.js" defer></script>
   <script src="/e2ee.js" defer></script>
+  <script src="/pairing.js" defer></script>
   <script src="/test-tone.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/experiments.js" defer></script>
@@ -44,6 +45,15 @@
       </details>
     </section>
     <section id="pane-audio" class="pane" role="tabpanel">
+      <section id="quickJoinPanel" class="quick-join" hidden aria-label="Conexión rápida a la televisión">
+        <div><strong>Invitación privada detectada</strong>
+          <p id="quickJoinMessage">La sala y la clave cifrada están preparadas. Conecta para recibir imagen y audio permitidos, sin volver a escribirlos.</p>
+        </div>
+        <div class="quick-join-actions">
+          <button id="quickJoinButton" type="button" class="button button-primary">Conectar y escuchar</button>
+          <button id="quickJoinDismiss" type="button" class="button button-ghost">Ocultar</button>
+        </div>
+      </section>
       <div class="section-head"><div><div class="overline">01 / AUDIO REMOTO</div><h2>Un dispositivo transmite. Otro escucha.</h2></div><span class="quiet-label">SIN GRABACIÓN</span></div>
       <div class="device-grid">
         <article class="device-card source-card">
@@ -91,7 +101,7 @@
           <audio id="audioPlayer" controls autoplay playsinline aria-label="Reproductor de audio recibido"></audio>
           <p id="listenerMetrics" class="footnote" role="status">Audio recibido: sin datos todavía.</p>
           <section class="tv-live" aria-label="Pantalla de la TV compartida con permiso">
-            <div class="tv-live-head"><strong>TV EN DIRECTO</strong><span id="screenState">Sin compartición de pantalla</span></div>
+            <div class="tv-live-head"><strong>TV EN DIRECTO</strong><span id="screenState">Sin compartición de pantalla</span><button id="screenFullscreen" type="button" class="button button-ghost">Pantalla completa</button></div>
             <div class="screen-viewport"><img id="tvScreen" alt="Imagen compartida de la TV con autorización del sistema" hidden><p id="screenEmpty">Cuando en Android TV se active «Compartir pantalla y audio», aquí verás imágenes del contenido que Android permita capturar. Las aplicaciones DRM pueden bloquear la imagen.</p></div>
             <p class="footnote">Vista previa cifrada de aproximadamente una imagen por segundo, no vídeo de alta frecuencia. Solo tras aprobar la captura en la propia televisión. No se guarda.</p>
           </section>
