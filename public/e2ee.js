@@ -67,9 +67,26 @@
     if(raw.byteLength!==FRAME_SIZE)throw Error("PCM descifrado inválido");
     return new Uint8Array(raw);
   }
+  class FrameDecryptor{
+    constructor(key){
+      this.key=key;
+      this.recent=new Set();
+    }
+    async decryptFrame(packet){
+      if(typeof packet!=="string"||!/^[A-Za-z0-9+/]{891}=$/.test(packet))
+        throw Error("Trama cifrada inválida");
+      // Exactly 12 nonce bytes = 16 Base64 characters.
+      const nonce=packet.slice(0,16);
+      if(this.recent.has(nonce))throw Error("Trama cifrada repetida");
+      const raw=await decryptFrame(this.key,packet);
+      this.recent.add(nonce);
+      if(this.recent.size>8192)this.recent.delete(this.recent.values().next().value);
+      return raw;
+    }
+  }
   function rawToPcmBase64(bytes){
     if(bytes.length!==FRAME_SIZE)throw Error("Tamaño PCM inválido");
     return asBase64(bytes);
   }
-  return {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64,validSecret,FRAME_SIZE,ENVELOPE_SIZE};
+  return {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64,validSecret,FrameDecryptor,FRAME_SIZE,ENVELOPE_SIZE};
 });
