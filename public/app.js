@@ -57,7 +57,9 @@ function clearScreenAndChannels(){
   $("screenEmpty").hidden=false;
   $("screenState").textContent="Sin compartición de pantalla";
   $("tvAudioState").textContent="Sin audio de reproducción capturado";
+  $("tvAudioLevel").value=0;
   $("voiceAudioState").textContent="Sin voz capturada";
+  $("voiceAudioLevel").value=0;
   $("screenAudioStatus").textContent="No se ha iniciado una sesión de pantalla y audio independiente.";
 }
 volumeControl.addEventListener("input",applyListenerVolume);
@@ -589,10 +591,19 @@ $("startListener").addEventListener("click",()=>{
             const bytes=await decryptor.decryptMedia(msg.data,kind);
             if(session.listener!==ws)return;
             const player=kind==="voice"?voicePlayer:tvPlayer;
-            if(player?.play(HowdyE2EE.rawToPcmBase64(bytes))){
-              const node=$(kind==="voice"?"voiceAudioState":"tvAudioState");
-              if(player.frames===1)node.textContent="● Recibiendo pista cifrada";
-              if(player.frames%25===0)node.textContent="● "+player.frames+" tramas recibidas (20 ms)";
+            const audio=HowdyE2EE.rawToPcmBase64(bytes);
+            if(player?.play(audio)){
+              if(player.frames%10===0||player.frames===1){
+                const decoded=HowdyPcm.decodeFrame(audio);
+                let square=0;
+                for(const sample of decoded)square+=sample*sample;
+                const rms=Math.sqrt(square/decoded.length);
+                const meter=$(kind==="voice"?"voiceAudioLevel":"tvAudioLevel");
+                meter.value=Math.min(100,Math.round(rms*350));
+                const status=$(kind==="voice"?"voiceAudioState":"tvAudioState");
+                status.textContent=rms>0.006?"● Señal capturada ("+player.frames+" tramas)":
+                  "Pista conectada, sonido muy bajo o silencioso";
+              }
             }
           }).catch(()=>{
             if(session.listener===ws)$("screenAudioStatus").textContent=
