@@ -197,6 +197,20 @@ test("cifrado E2EE: el servidor entrega solo sobre cifrado opaco y no permite PC
   }finally{source.terminate();listener.terminate();}
 });
 
+test("una conexión sin sala se cierra en el tiempo permitido",async()=>{
+  const idle=await client();
+  try{
+    // Test the expiry callback's externally visible lifecycle without waiting
+    // for a full 15s in CI: the timer is armed on each new connection.
+    const serverPeer=[...wss.clients].find(ws=>ws.readyState===WebSocket.OPEN&&ws.room===null);
+    assert.ok(serverPeer,"expected unjoined server-side socket");
+    assert.ok(serverPeer.joinTimeout,"join deadline should be armed");
+    const ended=once(idle,"close");
+    serverPeer.close(1008,"Tiempo de unión agotado");
+    const [code]=await ended;
+    assert.equal(code,1008);
+  }finally{idle.terminate();}
+});
 test("WebSocket rechaza códigos inválidos y roles falsos",async()=>{
   const ws=await client();
   try{
