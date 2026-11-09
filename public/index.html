@@ -50,6 +50,14 @@
           <div class="card-heading"><div class="avatar microphone">◉</div><div><div class="step">DISPOSITIVO A</div><h3>Junto a la televisión</h3></div></div>
           <p>Abre esta web en un móvil u ordenador cercano a la televisión. Pulsa Activar para conceder permiso al micrófono.</p>
           <div class="field"><label for="sourceRoom">Código privado de la sala</label><div class="field-row"><input id="sourceRoom" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Código de sala del emisor"><button id="generateRoom" class="icon-button" title="Crear otro código" aria-label="Crear código nuevo">↻</button></div></div>
+          <div class="field">
+            <label for="micDevice">Entrada del micrófono (navegador)</label>
+            <div class="field-row">
+              <select id="micDevice" aria-label="Seleccionar micrófono" style="min-width:0;flex:1"><option value="">Micrófono predeterminado</option></select>
+              <button id="refreshMicDevices" type="button" class="button button-ghost">Buscar entradas</button>
+            </div>
+            <p id="micDeviceStatus" class="footnote" role="status">Si una entrada no funciona, conecta un micrófono USB o usa otro móvil y selecciona su micrófono. La TV puede reservar su micrófono interno.</p>
+          </div>
           <label class="relay-mode"><input id="relayMode" type="checkbox"><span><strong>Modo distancia (sin TURN)</strong> · Enviar audio mediante el servidor WSS. Úsalo si la TV y el receptor están en redes distintas y WebRTC no conecta. Si activas cifrado PCM, el servidor solo retransmite paquetes cifrados. Sin cifrado, puede acceder al audio durante el transporte.</span></label>
           <label class="relay-mode"><input id="encryptAudio" type="checkbox" checked><span><strong>Cifrado extremo a extremo para PCM (recomendado)</strong> · Requiere clave de audio independiente de la sala; el servidor no podrá descifrarla.</span></label>
           <div class="field"><label for="sourceSecret">Clave de audio privada (solo para modo distancia)</label><div class="field-row"><input id="sourceSecret" type="password" minlength="16" maxlength="128" autocomplete="off" spellcheck="false" placeholder="Clave secreta, independiente de la sala"><button id="newAudioKey" class="icon-button" type="button" title="Generar clave segura" aria-label="Generar clave segura">↻</button><button id="toggleSourceSecret" class="icon-button" type="button" aria-label="Mostrar clave de origen">◉</button></div><p class="footnote">Comparte la clave únicamente con quienes deban escuchar. No la introduzcas en el servidor.</p></div>
