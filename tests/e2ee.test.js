@@ -1,7 +1,7 @@
 "use strict";
 const {test}=require("node:test");
 const assert=require("node:assert/strict");
-const {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64}=require("../public/e2ee.js");
+const {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64,FrameDecryptor}=require("../public/e2ee.js");
 const {decodeFrame}=require("../public/pcm-playback.js");
 
 test("AES-256-GCM E2EE frames are authenticated and decrypt into original PCM",async()=>{
@@ -32,4 +32,12 @@ test("wrong independent secret, wrong room, and tampered GCM frames are rejected
   corrupted[25]^=1;
   await assert.rejects(()=>decryptFrame(key,corrupted.toString("base64")));
   assert.rejects(()=>deriveKey("too-short","TESTRM123456"),/Clave/);
+});
+
+test("receiver rejects replaying the same authenticated encrypted audio frame",async()=>{
+  const key=await deriveKey("TWENTY-FOUR-CHARACTER-VOICE-KEY","REPLAYROOM11");
+  const receiver=new FrameDecryptor(key);
+  const packet=await encryptFrame(key,new Uint8Array(640).fill(6));
+  assert.equal((await receiver.decryptFrame(packet)).length,640);
+  await assert.rejects(()=>receiver.decryptFrame(packet),/repetida/);
 });
