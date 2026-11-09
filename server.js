@@ -32,7 +32,9 @@ const requestHandler = async (req, res) => {
   let pathname;
   try {pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);} catch {res.writeHead(400);return res.end();}
   if (pathname === "/api/health") return json(res, 200, {status:"ok", service:"howdyknw"});
-  if (pathname === "/api/config") return json(res,200,{iceServers:getIceServers(),requiresE2EE:REMOTE_MODE});
+  if (pathname === "/api/config") return json(res,200,{iceServers:getIceServers(),requiresE2EE:REMOTE_MODE,
+    features:{mediaProjection:true,separateAudio:true,audioE2EE:true,
+      maxScreenFramesPerSecond:2}});
   if (pathname === "/api/report") {
     if (REMOTE_MODE && process.env.ALLOW_REMOTE_REPORT !== "1") return json(res,403,{error:"El informe local de la TV está deshabilitado en el servidor remoto"});
     try {
@@ -139,7 +141,7 @@ wss.on("connection",ws=>{
         room.source=ws;
         room.mediaCapabilities=null;
         // Send join configuration BEFORE offers, important for TV runtimes.
-        send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:true,listenerCount:room.listeners.size,sourceTransport:ws.audioTransport,iceServers:getIceServers()});
+        send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:true,listenerCount:room.listeners.size,sourceTransport:ws.audioTransport,supportsMediaShare:true,iceServers:getIceServers()});
         notifyListenerCount(room);
         for(const listener of room.listeners.values()){
           send(listener,{type:"source-mode",transport:ws.audioTransport});
@@ -147,7 +149,7 @@ wss.on("connection",ws=>{
         }
       }else{
         room.listeners.set(ws.id,ws);
-        send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,listenerCount:room.listeners.size,sourceTransport:room.source?.audioTransport||null,iceServers:getIceServers()});
+        send(ws,{type:"joined",id:ws.id,role,room:roomCode,sourceOnline:!!room.source,listenerCount:room.listeners.size,sourceTransport:room.source?.audioTransport||null,supportsMediaShare:true,iceServers:getIceServers()});
         notifyListenerCount(room);
         if(room.mediaCapabilities)send(ws,room.mediaCapabilities);
         if(room.source&&room.source.audioTransport==="webrtc")send(room.source,{type:"listener-joined",id:ws.id});
