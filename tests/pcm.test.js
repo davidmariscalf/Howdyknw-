@@ -32,3 +32,30 @@ test("PCM playback volume is clamped safely",()=>{
   p.setVolume(-1);
   assert.equal(p.volume,0);
 });
+
+test("TV and voice players share a single AudioContext without one stopping the other",async()=>{
+  let closed=0,created=0;
+  const context={
+    state:"running",currentTime:0,destination:{},
+    createGain(){created++;return {gain:{value:0},connect(){},disconnect(){}};},
+    createBuffer(){return {copyToChannel(){}};},
+    createBufferSource(){return {connect(){},start(){}};},
+    async resume(){this.state="running";},
+    async close(){closed++;}
+  };
+  const voice=new Player(context),tv=new Player(context);
+  await voice.enable();await tv.enable();
+  assert.equal(created,2);
+  voice.setVolume(0.25);tv.setVolume(0.75);
+  assert.equal(voice.output.gain.value,0.25);
+  assert.equal(tv.output.gain.value,0.75);
+  const pcm=Buffer.alloc(640).toString("base64");
+  assert.equal(voice.play(pcm),true);
+  voice.stop();
+  assert.equal(closed,0,"one channel must not close the shared audio engine");
+  assert.equal(tv.play(pcm),true,"TV must keep playing when microphone track ends");
+  tv.stop();
+  assert.equal(closed,0);
+  await context.close();
+  assert.equal(closed,1);
+});
