@@ -302,6 +302,32 @@ async function configureIce(){
 }
 configureIce();
 browserRequirements();
+async function refreshMicDevices(){
+  const picker=$("micDevice"),prev=picker.value;
+  picker.replaceChildren(new Option("Micrófono predeterminado",""));
+  if(!navigator.mediaDevices?.enumerateDevices){
+    $("micDeviceStatus").textContent="No se pueden consultar las entradas de audio en este navegador. Prueba el teclado si no hay micrófono.";
+    return;
+  }
+  try{
+    const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="audioinput");
+    for(const device of devices){
+      if(!device.deviceId||device.deviceId==="default"||device.deviceId==="communications")continue;
+      picker.append(new Option(device.label||"Micrófono adicional "+picker.options.length,device.deviceId));
+    }
+    if([...picker.options].some(o=>o.value===prev))picker.value=prev;
+    $("micDeviceStatus").textContent=devices.length?
+      "Entradas detectadas: "+devices.length+". Selecciona una distinta y pulsa Activar micrófono para solicitar permiso explícito.":
+      "No hay micrófonos visibles. Conecta un accesorio autorizado o prueba el teclado del sistema (solo texto).";
+  }catch(err){
+    $("micDeviceStatus").textContent="No se pudieron consultar entradas: "+(err.name||err.message);
+  }
+}
+$("refreshMicDevices").addEventListener("click",refreshMicDevices);
+if(navigator.mediaDevices?.addEventListener)navigator.mediaDevices.addEventListener("devicechange",()=>{
+  if(!session.stream)void refreshMicDevices();
+});
+void refreshMicDevices();
 $("startSource").addEventListener("click",async()=>{
   const room=$("sourceRoom").value.trim().toUpperCase();
   const viaRelay=$("relayMode").checked;
@@ -324,10 +350,22 @@ $("startSource").addEventListener("click",async()=>{
     }
   }
   $("startSource").disabled=true;setStatus("source","Solicitando permiso del micrófono...");
-  try{session.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true},video:false});}
+  const audioConstraints={echoCancellation:false,noiseSuppression:false,autoGainControl:true};
+  if($("micDevice").value)audioConstraints.deviceId={exact:$("micDevice").value};
+  try{
+    session.stream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints,video:false});
+    void refreshMicDevices();
+  }
   catch(err){
     if(session.relayContext){void session.relayContext.close().catch(()=>{});session.relayContext=null;}
-    $("startSource").disabled=false;return setStatus("source","No se ha activado el micrófono: "+err.message,"error");
+    $("startSource").disabled=false;
+    const detail=err.name==="NotAllowedError"?
+      "Permiso denegado: revisa los ajustes del micrófono del navegador/TV y vuelve a pulsar Activar.":
+      err.name==="NotFoundError"||err.name==="OverconstrainedError"?
+      "La entrada elegida ya no está disponible. Pulsa Buscar entradas y prueba otro micrófono.":
+      "No se ha activado el micrófono: "+err.message;
+    $("micDeviceStatus").textContent=detail+" Si el fabricante lo bloquea, utiliza el teclado (solo texto).";
+    return setStatus("source",detail,"error");
   }
   if(encryptedMode){
     try{sourceKey=await HowdyE2EE.deriveKey($("sourceSecret").value.trim(),room);}
