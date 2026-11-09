@@ -197,6 +197,42 @@ test("cifrado E2EE: el servidor entrega solo sobre cifrado opaco y no permite PC
   }finally{source.terminate();listener.terminate();}
 });
 
+test("screen streaming sends only encrypted preview and separate audio channels inside room",async()=>{
+  const source=await client(),listener=await client(),other=await client();
+  try{
+    const join=message(source,m=>m.type==="joined");
+    source.send(JSON.stringify({type:"join",role:"source",room:"SCREENROOM91",transport:"pcm-e2ee"}));
+    await join;
+    const ready=message(listener,m=>m.type==="joined");
+    listener.send(JSON.stringify({type:"join",role:"listener",room:"SCREENROOM91"}));await ready;
+    const otherReady=message(other,m=>m.type==="joined");
+    other.send(JSON.stringify({type:"join",role:"listener",room:"OTHERSCREEN44"}));await otherReady;
+    let leaked=false;
+    other.on("message",raw=>{
+      try{if(["media-frame","screen-frame"].includes(JSON.parse(raw.toString()).type))leaked=true;}catch{}
+    });
+    const voice=Buffer.alloc(668,15).toString("base64");
+    const picture=Buffer.alloc(1000,37).toString("base64");
+    const voiceReady=message(listener,m=>m.type==="media-frame"&&m.channel==="voice");
+    source.send(JSON.stringify({type:"media-frame",channel:"voice",data:voice}));
+    assert.equal((await voiceReady).data,voice);
+    const tvReady=message(listener,m=>m.type==="media-frame"&&m.channel==="tv");
+    source.send(JSON.stringify({type:"media-frame",channel:"tv",data:voice}));
+    assert.equal((await tvReady).channel,"tv");
+    const screenReady=message(listener,m=>m.type==="screen-frame");
+    source.send(JSON.stringify({type:"screen-frame",data:picture}));
+    assert.equal((await screenReady).data,picture);
+    let invalid=false;
+    const check=raw=>{try{if(JSON.parse(raw.toString()).type==="screen-frame")invalid=true;}catch{}};
+    listener.on("message",check);
+    source.send(JSON.stringify({type:"screen-frame",data:"not-base64!"}));
+    source.send(JSON.stringify({type:"media-frame",channel:"video",data:voice}));
+    await new Promise(resolve=>setTimeout(resolve,100));
+    listener.off("message",check);
+    assert.equal(invalid,false);
+    assert.equal(leaked,false);
+  }finally{source.terminate();listener.terminate();other.terminate();}
+});
 test("una conexión sin sala se cierra en el tiempo permitido",async()=>{
   const idle=await client();
   try{
