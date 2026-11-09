@@ -35,6 +35,8 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.crypto.SecretKey;
+import java.security.GeneralSecurityException;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -60,6 +62,8 @@ public final class MainActivity extends Activity {
     private Thread audioThread;
     private EditText urlInput;
     private EditText roomInput;
+    private EditText audioSecretInput;
+    private SecretKey audioKey;
     private TextView statusView;
     private TextView micView;
     private TextView levelView;
@@ -123,6 +127,23 @@ public final class MainActivity extends Activity {
         roomInput.setHint("El mismo código que en el móvil receptor");
         roomInput.setHintTextColor(0xFF8296A8);
         root.addView(roomInput);
+        root.addView(label("CLAVE DE AUDIO CIFRADO (no es el código de sala)", 16, 0xFF91EBDD));
+        audioSecretInput = new EditText(this);
+        audioSecretInput.setSingleLine(true);
+        audioSecretInput.setTextColor(Color.WHITE);
+        audioSecretInput.setText(AudioCrypto.newSecret());
+        audioSecretInput.setHintTextColor(0xFF8296A8);
+        audioSecretInput.setHint("16-128 caracteres; solo para el receptor autorizado");
+        root.addView(audioSecretInput);
+        Button regenerateSecret = new Button(this);
+        regenerateSecret.setText("GENERAR OTRA CLAVE PRIVADA");
+        root.addView(regenerateSecret);
+        regenerateSecret.setOnClickListener(v -> {
+            if (!running.get() && socket == null) {
+                audioSecretInput.setText(AudioCrypto.newSecret());
+            }
+        });
+        root.addView(label("Escribe esta clave también en el receptor web. La clave NO se envía al servidor; sin ella no se puede escuchar. No compartas la clave con terceros.", 14, 0xFFBBCEDB));
 
         TextView consent = label("Al pulsar INICIAR confirmas que todas las personas presentes conocen y aceptan esta transmisión de audio.", 16, 0xFFFFCC9C);
         root.addView(consent);
@@ -228,6 +249,17 @@ public final class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSION_REQUEST);
             return;
         }
+        final String secret = audioSecretInput.getText().toString().trim();
+        if (!AudioCrypto.validSecret(secret)) {
+            setStatus("La clave de audio debe tener entre 16 y 128 caracteres.", false);
+            return;
+        }
+        try {
+            audioKey = AudioCrypto.deriveKey(secret, room);
+        } catch (GeneralSecurityException e) {
+            setStatus("No se pudo preparar el cifrado de audio.", false);
+            return;
+        }
         connect(url);
     }
 
@@ -260,7 +292,7 @@ public final class MainActivity extends Activity {
                 try {
                     join.put("type", "join");
                     join.put("role", "source");
-                    join.put("transport", "pcm16");
+                    join.put("transport", "pcm-e2ee");
                     join.put("room", roomCode);
                     ws.send(join.toString());
                 } catch (Exception e) {
@@ -335,7 +367,7 @@ public final class MainActivity extends Activity {
         }
         running.set(true);
         setStatus(activeListeners.get() > 0
-                ? "● TRANSMITIENDO · MICRÓFONO ACTIVO · CÓDIGO " + roomCode
+                ? "● TRANSMITIENDO CIFRADO · MICRÓFONO ACTIVO · CÓDIGO " + roomCode
                 : "● MICRÓFONO ACTIVO · ESPERANDO RECEPTOR · NO SE ENVÍA AUDIO", true);
         AudioDeviceInfo route = recorder.getRoutedDevice();
         if (route != null) micView.setText("Entrada realmente utilizada: "
@@ -376,11 +408,10 @@ public final class MainActivity extends Activity {
             }
             if (activeListeners.get() <= 0) continue;
             if (ws.queueSize() > 256_000) continue; // Drop frames under backpressure.
-            String encoded = Base64.encodeToString(frame, Base64.NO_WRAP);
             JSONObject packet = new JSONObject();
             try {
-                packet.put("type", "audio-frame");
-                packet.put("pcm", encoded);
+                packet.put("type", "encrypted-frame");
+                packet.put("data", AudioCrypto.encryptFrame(audioKey, frame));
                 if (!ws.send(packet.toString())) break;
             } catch (Exception ex) { break; }
         }
@@ -569,6 +600,7 @@ public final class MainActivity extends Activity {
         pendingStart = false;
         running.set(false);
         activeListeners.set(0);
+        audioKey = null;
         WebSocket oldSocket = socket;
         socket = null;
         if (oldSocket != null) oldSocket.close(1000, "User stopped mic");
