@@ -324,6 +324,13 @@ $("copySecureInvite").addEventListener("click",async()=>{
 });
 async function configureIce(){
   try{const r=await fetch("/api/config",{cache:"no-store"});if(r.ok){const data=await r.json();if(Array.isArray(data.iceServers))session.ice={iceServers:data.iceServers};
+    if(data.features?.mediaProjection===true&&data.features?.separateAudio===true){
+      $("screenAudioStatus").textContent=
+        "Servidor preparado para imagen cifrada y pistas de voz/TV independientes. Esperando permiso y emisión desde la televisión.";
+    }else{
+      $("screenAudioStatus").textContent=
+        "Servidor antiguo: requiere una versión que admita la pantalla y el audio por separado.";
+    }
     if(data.requiresE2EE===true){
       remoteRequiresE2EE=true;
       // Public relay: use the actually supported encrypted PCM route by default.
