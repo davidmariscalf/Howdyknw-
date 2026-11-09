@@ -99,12 +99,12 @@
             <h4>Audio separado por origen</h4>
             <p class="footnote">La TV y las voces llegan por capturas independientes. Si solo existe un micrófono ambiental, no se puede separar de forma fiable el sonido de fondo.</p>
             <div class="audio-source">
-              <div><strong>Sonido de la televisión</strong><span id="tvAudioState">Sin audio de reproducción capturado</span></div>
+              <div><strong>Sonido de la televisión</strong><span id="tvAudioState">Sin audio de reproducción capturado</span><meter id="tvAudioLevel" min="0" max="100" value="0" aria-label="Nivel de sonido reproducido por TV"></meter></div>
               <label for="tvAudioVolume">Volumen TV</label>
               <input id="tvAudioVolume" type="range" min="0" max="100" value="70" step="5"><output id="tvAudioValue">70 %</output>
             </div>
             <div class="audio-source">
-              <div><strong>Voz del micrófono</strong><span id="voiceAudioState">Sin voz capturada</span></div>
+              <div><strong>Voz del micrófono</strong><span id="voiceAudioState">Sin voz capturada</span><meter id="voiceAudioLevel" min="0" max="100" value="0" aria-label="Nivel de micrófono"></meter></div>
               <label for="voiceAudioVolume">Volumen voz</label>
               <input id="voiceAudioVolume" type="range" min="0" max="100" value="70" step="5"><output id="voiceAudioValue">70 %</output>
             </div>
