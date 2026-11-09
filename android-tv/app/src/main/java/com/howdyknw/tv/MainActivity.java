@@ -9,6 +9,7 @@ import android.provider.Settings;
 import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.text.method.PasswordTransformationMethod;
 import android.text.method.SingleLineTransformationMethod;
@@ -27,6 +28,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -34,6 +36,11 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.security.SecureRandom;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
@@ -89,6 +96,9 @@ public final class MainActivity extends Activity {
     private CheckBox sharePlaybackCheck;
     private CheckBox shareVoiceCheck;
     private CheckBox fastPreviewCheck;
+    private ImageView quickPairQr;
+    private TextView quickPairHint;
+    private final SecureRandom pairingRandom = new SecureRandom();
     private int preferredAudioSource = 0;
     private boolean pendingStart = false;
     private String roomCode;
@@ -167,6 +177,19 @@ public final class MainActivity extends Activity {
             }
         });
         root.addView(label("Escribe esta clave también en el receptor web. La clave NO se envía al servidor; sin ella no se puede escuchar. No compartas la clave con terceros.", 14, 0xFFBBCEDB));
+        Button quickPair = new Button(this);
+        quickPair.setText("CREAR SESIÓN RÁPIDA · MOSTRAR QR");
+        root.addView(quickPair);
+        quickPairHint = label("Un solo botón prepara sala y clave nuevas. Escanea el QR con el móvil y toca «Conectar y escuchar». El QR contiene la clave privada: no lo muestres a terceros.", 15, 0xFF91EBDD);
+        root.addView(quickPairHint);
+        quickPairQr = new ImageView(this);
+        int qrSize = (int)(280 * getResources().getDisplayMetrics().density);
+        quickPairQr.setLayoutParams(new LinearLayout.LayoutParams(qrSize, qrSize));
+        quickPairQr.setContentDescription("Código QR privado: escanéalo solo con un dispositivo autorizado");
+        quickPairQr.setVisibility(View.GONE);
+        root.addView(quickPairQr);
+        quickPair.setOnClickListener(v -> makeQuickPair());
+
 
         TextView consent = label("Al pulsar INICIAR confirmas que todas las personas presentes conocen y aceptan esta transmisión de audio.", 16, 0xFFFFCC9C);
         root.addView(consent);
@@ -285,6 +308,56 @@ public final class MainActivity extends Activity {
         showMicDevices();
     }
 
+    private void hidePairingQr() {
+        if (quickPairQr != null) {
+            quickPairQr.setVisibility(View.GONE);
+            quickPairQr.setImageDrawable(null);
+        }
+        if (quickPairHint != null)
+            quickPairHint.setText("La invitación QR se oculta durante la transmisión para no revelar la clave privada.");
+    }
+
+    private void makeQuickPair() {
+        if (running.get() || pendingStart || socket != null || ScreenShareService.isActive()) {
+            setStatus("Detén antes cualquier transmisión para cambiar de sala y clave.", false);
+            return;
+        }
+        try {
+            URI address = URI.create(urlInput.getText().toString().trim());
+            if (!"wss".equalsIgnoreCase(address.getScheme()) ||
+                    address.getHost() == null || address.getUserInfo() != null ||
+                    address.getQuery() != null || address.getFragment() != null ||
+                    (address.getPath() != null && !address.getPath().isEmpty() &&
+                            !"/".equals(address.getPath())))
+                throw new IllegalArgumentException("Introduce primero una dirección WSS válida.");
+            final String alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            StringBuilder code=new StringBuilder(12);
+            for (int i=0;i<12;i++)code.append(alphabet.charAt(pairingRandom.nextInt(alphabet.length())));
+            String room=code.toString();
+            String secret=AudioCrypto.newSecret();
+            roomInput.setText(room);
+            audioSecretInput.setText(secret);
+            audioSecretInput.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            final String invitation="https://"+address.getRawAuthority()+"/#room="+room+
+                    "&audioKey="+URLEncoder.encode(secret, "UTF-8");
+            final int side=512;
+            BitMatrix bits=new QRCodeWriter().encode(invitation,BarcodeFormat.QR_CODE,side,side);
+            int[] pixels=new int[side*side];
+            for(int y=0;y<side;y++){
+                for(int x=0;x<side;x++)
+                    pixels[y*side+x]=bits.get(x,y)?Color.BLACK:Color.WHITE;
+            }
+            Bitmap qr=Bitmap.createBitmap(pixels,side,side,Bitmap.Config.ARGB_8888);
+            quickPairQr.setImageBitmap(qr);
+            quickPairQr.setVisibility(View.VISIBLE);
+            quickPairHint.setText("Sala "+room+" preparada. Escanea con el móvil, pulsa «Conectar y escuchar» y luego inicia la pantalla o audio aquí. El QR es privado: no lo compartas públicamente.");
+            setStatus("Sesión preparada. Aún NO hay captura de pantalla ni micrófono.",false);
+        } catch(Exception ex) {
+            hidePairingQr();
+            setStatus("No se pudo crear el QR: revisa la dirección WSS del servidor.",false);
+        }
+    }
+
     private void showMicDevices() {
         AudioManager manager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (manager == null) { micView.setText("No se pudo consultar el sistema de audio."); return; }
@@ -322,6 +395,7 @@ public final class MainActivity extends Activity {
             setStatus("Dirección del servidor inválida.", false); return;
         }
         roomCode = room;
+        hidePairingQr();
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             pendingStart = true;
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSION_REQUEST);
@@ -365,6 +439,7 @@ public final class MainActivity extends Activity {
             setStatus("Indica una dirección WSS segura válida para compartir pantalla.",false);
             return;
         }
+        hidePairingQr();
         boolean anyAudio=shareVoiceCheck.isChecked()||sharePlaybackCheck.isChecked();
         if(anyAudio &&checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
