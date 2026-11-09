@@ -125,7 +125,7 @@ wss.on("connection",ws=>{
       if(role==="source"&&room.source)return send(ws,{type:"error",message:"Esta sala ya tiene un micrófono activo"});
       if(role==="listener"&&room.listeners.size >= MAX_LISTENERS)return send(ws,{type:"error",message:"Sala llena: máximo 4 receptores"});
       ws.room=roomCode;ws.role=role;
-      ws.audioTransport=role==="source"&&["pcm16","text"].includes(m.transport)?m.transport:"webrtc";
+      ws.audioTransport=role==="source"&&["pcm16","pcm-e2ee","text"].includes(m.transport)?m.transport:"webrtc";
       peers.set(ws.id,ws);
       if(role==="source"){
         room.source=ws;
@@ -161,6 +161,19 @@ wss.on("connection",ws=>{
         }
       }
       send(ws,{type:"transcript-sent",listeners:delivered});
+      return;
+    }
+    // Opaque AES-GCM frames. Relay has no secret and cannot decrypt the payload.
+    if(m.type==="encrypted-frame"&&ws.role==="source"&&ws.room&&ws.audioTransport==="pcm-e2ee"){
+      const room=rooms.get(ws.room);
+      if(!room||room.source!==ws||typeof m.data!=="string"||
+          !/^[A-Za-z0-9+/]{891}=$/.test(m.data))return;
+      const timestamp=Date.now();
+      if(timestamp-ws.frameWindowStart>=1000){ws.frameWindowStart=timestamp;ws.frameCount=0;}
+      if(++ws.frameCount>65)return;
+      for(const listener of room.listeners.values()){
+        if(listener.bufferedAmount<200000)send(listener,{type:"encrypted-frame",data:m.data});
+      }
       return;
     }
     // Native Android TV/Google TV: explicit mic capture, 16 kHz mono, 16-bit PCM.
