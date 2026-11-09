@@ -230,6 +230,10 @@ $("testAudio").addEventListener("click",async()=>{
     if(toneSocket!==ws)return;
     let m;try{m=JSON.parse(event.data);}catch{return;}
     if(m.type==="error"){endTone("Servidor: "+m.message);return;}
+    if(m.type==="listener-count" && m.count===0){
+      endTone("El receptor se ha desconectado: prueba interrumpida sin consumir más ancho de banda.");
+      return;
+    }
     if(m.type!=="joined")return;
     if(m.listenerCount<1){
       endTone("Ningún receptor conectado. Pulsa Escuchar ahora en el otro dispositivo y repite.");
@@ -348,7 +352,8 @@ $("startSource").addEventListener("click",async()=>{
         relayListeners=Math.max(0,Number(msg.count)||0);
         $("sourceListeners").textContent="Receptores conectados: "+relayListeners;
         if(viaRelay&&pcmSource)setStatus("source",relayListeners?
-          "● Transmitiendo audio a "+relayListeners+" receptor(es).":"● Micrófono activo; esperando receptor. No se envía audio.","live");
+          (encryptedMode?"● Audio cifrado hacia ":"● Transmitiendo audio a ")+relayListeners+" receptor(es).":
+          "● Micrófono activo; esperando receptor. No se envía audio.","live");
       }
       if(msg.type==="joined"){
         if(Number.isInteger(msg.listenerCount)){
