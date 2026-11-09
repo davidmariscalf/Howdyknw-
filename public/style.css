@@ -108,3 +108,21 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 
 .mic-device-select{min-width:0;flex:1;background:#112331;border:1px solid #435c68;border-radius:10px;padding:10px;color:#eff8f8;font:inherit}
 .mic-device-select:focus-visible{outline:2px solid #85dfcf;outline-offset:2px}
+
+.tv-live,.audio-sources{margin-top:20px;border:1px solid #315262;background:#101f2d;border-radius:15px;padding:16px}
+.tv-live-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.tv-live-head strong{color:#c5f6ed;letter-spacing:.08em;font-size:13px}
+.tv-live-head span{color:#a8bcc9;font-size:12px;text-align:right}
+.screen-viewport{position:relative;aspect-ratio:16/9;width:100%;background:#07111c;display:grid;place-items:center;border:1px solid #2a3d4b;border-radius:10px;overflow:hidden}
+.screen-viewport img{width:100%;height:100%;object-fit:contain;display:block}
+.screen-viewport img[hidden]{display:none}
+.screen-viewport p{max-width:75%;text-align:center;color:#8fa6b5;font-size:12px;line-height:1.65}
+.audio-sources h4{margin:0 0 6px;color:#d6f6f1}
+.audio-source{border-top:1px solid #2b4655;display:grid;grid-template-columns:1fr 90px;gap:6px 12px;align-items:center;padding:13px 0}
+.audio-source>div{display:flex;flex-direction:column;gap:5px}
+.audio-source strong{font-size:13px;color:#e6faf5}
+.audio-source span{font-size:12px;color:#a8c0cf}
+.audio-source label{font-size:12px;color:#a8c0cf;text-align:right}
+.audio-source input{width:100%;accent-color:#77e7d0;grid-column:1}
+.audio-source output{font-size:12px;color:#cef8ee;text-align:right}
+@media(max-width:530px){.tv-live,.audio-sources{padding:12px}}
