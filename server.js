@@ -32,7 +32,7 @@ const requestHandler = async (req, res) => {
   let pathname;
   try {pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);} catch {res.writeHead(400);return res.end();}
   if (pathname === "/api/health") return json(res, 200, {status:"ok", service:"howdyknw"});
-  if (pathname === "/api/config") return json(res,200,{iceServers:getIceServers()});
+  if (pathname === "/api/config") return json(res,200,{iceServers:getIceServers(),requiresE2EE:REMOTE_MODE});
   if (pathname === "/api/report") {
     if (REMOTE_MODE && process.env.ALLOW_REMOTE_REPORT !== "1") return json(res,403,{error:"El informe local de la TV está deshabilitado en el servidor remoto"});
     try {
