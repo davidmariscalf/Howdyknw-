@@ -105,3 +105,6 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 .volume-control label,.volume-control output{font-size:12px;color:#daeeeb}
 .volume-control input{width:100%;accent-color:#7fe6d1;cursor:pointer}
 @media(max-width:550px){.volume-control{grid-template-columns:1fr auto}.volume-control input{grid-row:2;grid-column:1/-1}}
+
+.mic-device-select{min-width:0;flex:1;background:#112331;border:1px solid #435c68;border-radius:10px;padding:10px;color:#eff8f8;font:inherit}
+.mic-device-select:focus-visible{outline:2px solid #85dfcf;outline-offset:2px}
