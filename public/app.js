@@ -203,8 +203,12 @@ async function configureIce(){
   try{const r=await fetch("/api/config",{cache:"no-store"});if(r.ok){const data=await r.json();if(Array.isArray(data.iceServers))session.ice={iceServers:data.iceServers};
     if(data.requiresE2EE===true){
       remoteRequiresE2EE=true;
+      // Public relay: use the actually supported encrypted PCM route by default.
+      // WebRTC remains available when explicitly deselecting the distance mode.
+      $("relayMode").checked=true;
       $("encryptAudio").checked=true;
       $("encryptAudio").disabled=true;
+      $("remoteAccessStatus").textContent="Servidor remoto activo · cifrado PCM obligatorio · conexión WSS disponible.";
     }}}catch{}
 }
 configureIce();
