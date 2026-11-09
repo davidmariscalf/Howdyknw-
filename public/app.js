@@ -181,6 +181,75 @@ function closeListener(){
   $("listenerMetrics").textContent="Audio recibido: sin datos todavía.";
   setStatus("listener","Esperando conexión.");
 }
+// An explicit low-volume synthetic test checks the E2EE/WSS audio path
+// without ever requesting or capturing the microphone.
+let toneSocket=null;
+let toneCancelled=false;
+function endTone(message){
+  toneCancelled=true;
+  const old=toneSocket;toneSocket=null;
+  if(old)old.close();
+  $("testAudio").textContent="♪ Probar audio cifrado (2 s, sin micrófono)";
+  $("startSource").disabled=!!session.stream;
+  $("testAudioStatus").textContent=message;
+}
+$("testAudio").addEventListener("click",async()=>{
+  if(toneSocket){endTone("Prueba de audio detenida voluntariamente.");return;}
+  if(session.stream||session.source){
+    $("testAudioStatus").textContent="Detén primero el micrófono para probar el canal con un tono.";
+    return;
+  }
+  const room=$("sourceRoom").value.trim().toUpperCase();
+  const secret=$("sourceSecret").value.trim();
+  if(!ROOM_PATTERN.test(room)||!HowdyE2EE.validSecret(secret)){
+    $("testAudioStatus").textContent="Necesitas un código de sala válido y una clave privada antes de la prueba.";
+    return;
+  }
+  if(!$("consentMic").checked){
+    $("testAudioStatus").textContent="Confirma que las personas presentes conocen esta prueba audible.";
+    return;
+  }
+  $("startSource").disabled=true;
+  $("testAudio").textContent="■ Detener prueba";
+  $("testAudioStatus").textContent="Preparando clave y conexión de prueba…";
+  toneCancelled=false;
+  let key;
+  try{key=await HowdyE2EE.deriveKey(secret,room);}
+  catch(error){endTone("No se pudo preparar el cifrado: "+error.message);return;}
+  if(toneCancelled)return;
+  let ws;
+  try{ws=wsOpen();}catch(error){endTone("No se pudo abrir WebSocket: "+error.message);return;}
+  toneSocket=ws;
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({type:"join",role:"source",transport:"pcm-e2ee",room}));
+  };
+  ws.onmessage=async event=>{
+    if(toneSocket!==ws)return;
+    let m;try{m=JSON.parse(event.data);}catch{return;}
+    if(m.type==="error"){endTone("Servidor: "+m.message);return;}
+    if(m.type!=="joined")return;
+    if(m.listenerCount<1){
+      endTone("Ningún receptor conectado. Pulsa Escuchar ahora en el otro dispositivo y repite.");
+      return;
+    }
+    $("testAudioStatus").textContent="Emitiendo tono de prueba cifrado de 440 Hz y volumen bajo…";
+    let frames=0;
+    try{
+      for(let i=0;i<100;i++){
+        if(toneCancelled||toneSocket!==ws||ws.readyState!==WebSocket.OPEN)break;
+        const data=await HowdyE2EE.encryptFrame(key,HowdyTestTone.frame(i));
+        if(ws.bufferedAmount<128000){
+          ws.send(JSON.stringify({type:"encrypted-frame",data}));
+          frames++;
+        }
+        await new Promise(resolve=>setTimeout(resolve,20));
+      }
+      if(toneSocket===ws)endTone("Prueba enviada: "+frames+" de 100 tramas cifradas. Comprueba si se oyó el tono en el receptor; el envío no confirma la reproducción.");
+    }catch(error){if(toneSocket===ws)endTone("Error en la prueba: "+error.message);}
+  };
+  ws.onerror=()=>{if(toneSocket===ws)endTone("No se pudo conectar al servidor WSS.");};
+  ws.onclose=()=>{if(toneSocket===ws)endTone("Conexión de prueba cerrada.");};
+});
 $("stopSource").addEventListener("click",closeSource);
 $("stopListener").addEventListener("click",closeListener);
 $("generateRoom").addEventListener("click",()=>{
