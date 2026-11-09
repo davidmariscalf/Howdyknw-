@@ -130,3 +130,23 @@ button:focus-visible,.upload-label:focus-within{outline:2px solid #8ce5d5;outlin
 .audio-source meter{display:block;width:100%;height:9px;accent-color:#7fe8d3}
 .audio-source meter::-webkit-meter-bar{background:#233b49;border:0;border-radius:5px}
 .audio-source meter::-webkit-meter-optimum-value{background:#73dfcb;border-radius:5px}
+
+/* One-scan, one-tap pairing flow. Keep the invitation clearly separate from
+ * microphone permissions, which still require explicit user action. */
+.quick-join{
+  display:flex;justify-content:space-between;align-items:center;gap:18px;
+  padding:20px;margin:0 0 22px;border:1px solid #34806e;border-radius:16px;
+  background:linear-gradient(130deg,#112e35,#16363b);
+}
+.quick-join[hidden]{display:none}
+.quick-join strong{display:block;font-size:16px;color:#c8fff0;margin-bottom:4px}
+.quick-join p{font-size:13px;color:#b7d4d2;line-height:1.55;margin:0}
+.quick-join-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.screen-viewport:fullscreen{width:100vw;height:100vh;aspect-ratio:auto;border:0;border-radius:0;background:#050b13}
+.screen-viewport:fullscreen img{width:100%;height:100%;object-fit:contain}
+@media(max-width:690px){
+  .quick-join{flex-direction:column;align-items:stretch;padding:16px}
+  .quick-join-actions{justify-content:stretch}
+  .quick-join-actions button{flex:1}
+  .tv-live-head{flex-wrap:wrap}
+}
