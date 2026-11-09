@@ -28,17 +28,23 @@ No se permite lectura silenciosa del micrófono, ejecución oculta en standby ni
 
 ## Uso con la TV lejos (otra casa, ciudad o red)
 
-**Compatible en la arquitectura actual.** La TV, el móvil y el servidor no tienen que estar en la misma Wi-Fi. En el servidor ejecuta `npm run remote` y, en un segundo terminal, `tailscale funnel 3000` para obtener un dominio HTTPS público de Tailscale sin instalar Tailscale en la TV. También puedes alojar el servidor en Railway mediante el archivo `railway.json`. Cada dispositivo usa la **misma dirección HTTPS/WSS y código privado**.
+**Compatible en la arquitectura actual.** La TV, el móvil y el servidor no tienen que estar en la misma Wi-Fi. Usa el servidor público Railway de este proyecto, o, para hospedar por tu cuenta, ejecuta `npm run remote` y `tailscale funnel 3000` desde dos terminales para obtener una URL HTTPS de Tailscale. Cada dispositivo usa la **misma dirección HTTPS/WSS y código privado**.
 
 La app Android TV **1.3** cifra cada trama PCM con AES-256-GCM antes de enviarla al servidor WSS. Para escuchar necesitas tanto el código de sala como una **clave de audio independiente**. El servidor remoto rechaza fuentes PCM sin cifrar. En un navegador emisor selecciona **Modo distancia (sin TURN)** y activa el cifrado extremo a extremo. Detalles y límites en [cifrado E2EE](docs/END_TO_END_ENCRYPTION.md). El modo WebRTC usa DTLS-SRTP y puede necesitar TURN.
 
 Para evitar publicar informes de tráfico privados, el arranque `npm run remote` bloquea la API de reportes. No existe captación remota sin iniciar voluntariamente el micrófono en la TV. Para instrucciones paso a paso y limitaciones: **[Conexión con TV lejana](docs/REMOTE_CONNECTION.md)**.
 
-## Estado de despliegue y firma de Samsung (9 de noviembre de 2026)
+## Estado público verificado (9 de noviembre de 2026)
 
-- El intento de crear el servidor en Railway quedó bloqueado por **período de prueba caducado**. **No hay un dominio público de Howdyknw desplegado** ni se ha activado ningún servicio de pago. Como alternativa, puedes ejecutar `npm run remote` y publicar temporalmente mediante Tailscale Funnel en un equipo propio.
-- El proyecto Samsung está validado y empaquetado como fuentes. Un **WGT instalable requiere el certificado de firma del propietario y el DUID de la TV**, obtenidos con Tizen Studio. No se deben inventar ni subir estos certificados al repositorio.
-- Las pruebas automatizadas han validado E2EE, integración del servidor y compilación Android. Sigue sin existir **prueba física de una TV con un móvil en otra red**.
+**Servidor Railway desplegado** en [https://howdyknw-production.up.railway.app/](https://howdyknw-production.up.railway.app/), con WebSocket seguro en `wss://howdyknw-production.up.railway.app/`. Prueba externa independiente: `/api/health` respondió HTTP 200 y la opción de diagnóstico del navegador confirmó conexión WSS, sin pedir micrófono. El servicio ejecuta una sola instancia en producción. No hay evidencia aún de audio real de una TV física.
+
+- El servidor público rechaza fuentes PCM sin cifrar; Android TV 1.3 envía `pcm-e2ee`.
+- El formulario web preselecciona **Modo distancia** y exige cifrado PCM al reconocer que es un servidor público.
+- Usa **Probar audio cifrado (2 s, sin micrófono)** con el receptor conectado para comprobar el canal con un tono sintético de bajo volumen, sin activar el micrófono.
+- El proyecto Samsung sigue requiriendo una firma WGT con certificado y DUID del dispositivo; no se ha probado en una Samsung real.
+- Los precios y cuotas de Railway dependen de la cuenta. Controla el consumo y las opciones de facturación; desplegar un servicio no implica uso gratuito ilimitado.
+
+Consulta [conexión remota](docs/REMOTE_CONNECTION.md), [cifrado E2EE](docs/END_TO_END_ENCRYPTION.md) y [validación física](docs/HARDWARE_VALIDATION.md).
 
 ## Inicio del servidor y receptor web
 
@@ -53,7 +59,7 @@ npm start
 
 Abre **http://localhost:3000** desde el mismo ordenador.
 
-El servidor acepta conexiones WebSocket para WebRTC, audio PCM16 nativo y **mensajes de texto separados**. El receptor web distingue claramente la transcripción del audio. No almacena el contenido de audio ni los textos enviados como historial.
+El servidor acepta conexiones WebSocket para WebRTC, audio PCM16 cifrado E2EE nativo y **mensajes de texto separados** (no incluidos en el cifrado PCM). En modo público rechaza PCM16 sin cifrar. El receptor web distingue claramente la transcripción del audio. No almacena el contenido de audio ni los textos enviados como historial.
 
 ### Acceso desde la TV
 
