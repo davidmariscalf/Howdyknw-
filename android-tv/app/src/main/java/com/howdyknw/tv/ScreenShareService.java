@@ -98,7 +98,14 @@ public final class ScreenShareService extends Service {
             int types=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
             if(shareVoice||sharePlayback)
                 types|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
-            startForeground(NOTIFICATION_ID,notification("Permiso concedido. Preparando captura…"),types);
+            if(Build.VERSION.SDK_INT>=29){
+                startForeground(NOTIFICATION_ID,
+                        notification("Permiso concedido. Preparando captura…"),types);
+            }else{
+                // API 26-28 supports the two-argument overload only.
+                startForeground(NOTIFICATION_ID,
+                        notification("Permiso concedido. Preparando captura…"));
+            }
         } catch (Exception e) {
             stopSelf();
             return START_NOT_STICKY;
