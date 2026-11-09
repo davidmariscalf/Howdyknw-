@@ -16,11 +16,17 @@ Proyecto multisoporte para estudiar el tráfico de red de televisores propios y 
 
 El [informe de auditoría](docs/AUDIT_2026-11-09.md) distingue las pruebas automáticas de lo que **todavía requiere comprobarse en dispositivos físicos**.
 
+## Recuperación de micrófono (Android TV 1.4)
+
+La nueva APK 1.4 añade **REINTENTAR Y PROBAR OTRA ENTRADA**, comprueba el permiso `RECORD_AUDIO` y si el sistema tiene silenciado el micrófono. Cuando una fuente falla, prueba `MIC`, `VOICE_RECOGNITION` y `DEFAULT` (fuentes normales de Android, no privadas). Si el micrófono abre pero no entrega señal apreciable, informa del problema y permite cambiar manualmente de fuente, sin ocultar la captura ni transmitir audio cuando no hay receptores. También permite abrir los ajustes de permisos; si falla el PCM, mantiene la opción de teclado y reconocimiento de voz, **solo texto**.
+
+En la fuente web ahora puedes consultar los micrófonos autorizados del navegador y elegir otro, por ejemplo un accesorio USB o un móvil cercano, antes de pulsar **Activar micrófono**. No es posible forzar la captura de un micrófono reservado por el firmware. Lee [instrucciones de recuperación Android](android-tv/README.md).
+
 ## Tres maneras de utilizarlo
 
 | Plataforma | Audio en directo | Teclado/dictado del sistema | Estado |
 |---|---|---|---|
-| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.3 con PCM AES-GCM, pruebas físicas pendientes |
+| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.4 con recuperación de entradas y PCM AES-GCM; pruebas físicas pendientes |
 | Samsung Tizen | getUserMedia/WebRTC si existen y están permitidos | Campo de texto, teclado Tizen y compartir texto manualmente | Código fuente; falta firma Tizen y prueba física |
 | Navegador en Smart TV / móvil / PC | getUserMedia/WebRTC cuando existe | Campo de texto y teclado del dispositivo (voz si existe) | Integrado en la web; depende del navegador |
 
@@ -30,7 +36,7 @@ No se permite lectura silenciosa del micrófono, ejecución oculta en standby ni
 
 **Compatible en la arquitectura actual.** La TV, el móvil y el servidor no tienen que estar en la misma Wi-Fi. Usa el servidor público Railway de este proyecto, o, para hospedar por tu cuenta, ejecuta `npm run remote` y `tailscale funnel 3000` desde dos terminales para obtener una URL HTTPS de Tailscale. Cada dispositivo usa la **misma dirección HTTPS/WSS y código privado**.
 
-La app Android TV **1.3** cifra cada trama PCM con AES-256-GCM antes de enviarla al servidor WSS. Para escuchar necesitas tanto el código de sala como una **clave de audio independiente**. El servidor remoto rechaza fuentes PCM sin cifrar. En un navegador emisor selecciona **Modo distancia (sin TURN)** y activa el cifrado extremo a extremo. Detalles y límites en [cifrado E2EE](docs/END_TO_END_ENCRYPTION.md). El modo WebRTC usa DTLS-SRTP y puede necesitar TURN.
+La app Android TV **1.4** cifra cada trama PCM con AES-256-GCM antes de enviarla al servidor WSS. Para escuchar necesitas tanto el código de sala como una **clave de audio independiente**. El servidor remoto rechaza fuentes PCM sin cifrar. En un navegador emisor selecciona **Modo distancia (sin TURN)** y activa el cifrado extremo a extremo. Detalles y límites en [cifrado E2EE](docs/END_TO_END_ENCRYPTION.md). El modo WebRTC usa DTLS-SRTP y puede necesitar TURN.
 
 Para evitar publicar informes de tráfico privados, el arranque `npm run remote` bloquea la API de reportes. No existe captación remota sin iniciar voluntariamente el micrófono en la TV. Para instrucciones paso a paso y limitaciones: **[Conexión con TV lejana](docs/REMOTE_CONNECTION.md)**.
 
@@ -79,7 +85,7 @@ Abre la URL HTTPS proporcionada en la TV y en el receptor. Usa el mismo código 
 
 El audio PCM16 de Android TV se transporta por WSS al servidor; no necesita WebRTC en el emisor. El modo web/Tizen utiliza WebRTC si está disponible.
 
-## Android TV / Google TV — APK 1.3
+## Android TV / Google TV — APK 1.4
 
 El código está en [android-tv/](android-tv/), con una compilación de APK debug por GitHub Actions:
 https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
