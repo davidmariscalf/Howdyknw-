@@ -1,7 +1,7 @@
 "use strict";
 const {test}=require("node:test");
 const assert=require("node:assert/strict");
-const {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64,FrameDecryptor}=require("../public/e2ee.js");
+const {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64,FrameDecryptor,encryptMedia,decryptMedia}=require("../public/e2ee.js");
 const {decodeFrame}=require("../public/pcm-playback.js");
 
 test("AES-256-GCM E2EE frames are authenticated and decrypt into original PCM",async()=>{
@@ -40,4 +40,25 @@ test("receiver rejects replaying the same authenticated encrypted audio frame",a
   const packet=await encryptFrame(key,new Uint8Array(640).fill(6));
   assert.equal((await receiver.decryptFrame(packet)).length,640);
   await assert.rejects(()=>receiver.decryptFrame(packet),/repetida/);
+});
+
+test("screen and the TV/voice audio channels have distinct authenticated AES-GCM contexts",async()=>{
+  const key=await deriveKey("VIDEO-AUDIO-CHANNELS-PRIVATE-KEY","TVROOM1144");
+  const voice=new Uint8Array(640).fill(12);
+  const tv=new Uint8Array(640).fill(94);
+  const jpeg=Uint8Array.from([255,216,...Array.from({length:800},(_,i)=>i&255),255,217]);
+  const vo=await encryptMedia(key,voice,"voice");
+  const pl=await encryptMedia(key,tv,"tv");
+  const sc=await encryptMedia(key,jpeg,"screen");
+  const replay=new FrameDecryptor(key);
+  assert.deepEqual(await replay.decryptMedia(vo,"voice"),voice);
+  assert.deepEqual(await replay.decryptMedia(pl,"tv"),tv);
+  assert.deepEqual(await replay.decryptMedia(sc,"screen"),jpeg);
+  assert.equal(vo.length,892);
+  await assert.rejects(()=>decryptMedia(key,vo,"tv"),/./);
+  await assert.rejects(()=>decryptMedia(key,pl,"voice"),/./);
+  await assert.rejects(()=>decryptMedia(key,sc,"voice"),/./);
+  await assert.rejects(()=>replay.decryptMedia(vo,"voice"),/repetido/);
+  await assert.rejects(()=>encryptMedia(key,new Uint8Array(90001),"screen"),/no válido/);
+  await assert.rejects(()=>encryptMedia(key,voice,"microphone"),/no válido/);
 });
