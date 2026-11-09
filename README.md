@@ -34,6 +34,12 @@ La app Android TV **1.3** cifra cada trama PCM con AES-256-GCM antes de enviarla
 
 Para evitar publicar informes de tráfico privados, el arranque `npm run remote` bloquea la API de reportes. No existe captación remota sin iniciar voluntariamente el micrófono en la TV. Para instrucciones paso a paso y limitaciones: **[Conexión con TV lejana](docs/REMOTE_CONNECTION.md)**.
 
+## Actualización posterior al despliegue (9 de noviembre de 2026)
+
+El servidor HTTPS/WSS que ya está en Railway está **en ejecución**, pero Railway continúa mostrando como desplegado el commit inicial `894b9005db789905714c235dae9ead2653063e7e`. Las mejoras posteriores (clave oculta, modo distancia seleccionado por defecto, test de audio sintético sin micrófono y cierre de sockets sin sala) están **en `main` de GitHub con pruebas automáticas aprobadas**, pero **todavía no están en la URL pública**.
+
+La actualización del servicio existente intentó reconectar `davidmariscalf/Howdyknw-` a Railway, pero el conector devolvió literalmente `User does not have access to the repo` para las cuentas Railway actualmente disponibles. Para desbloquear el despliegue automático, autoriza el acceso de Railway al repositorio en la integración GitHub de la cuenta correcta, manteniendo el servicio y dominio existentes. No se ha creado un segundo servicio porque duplicaría recursos y costes sin solucionar el acceso.
+
 ## Estado público verificado (9 de noviembre de 2026)
 
 **Servidor Railway desplegado** en [https://howdyknw-production.up.railway.app/](https://howdyknw-production.up.railway.app/), con WebSocket seguro en `wss://howdyknw-production.up.railway.app/`. Prueba externa independiente: `/api/health` respondió HTTP 200 y la opción de diagnóstico del navegador confirmó conexión WSS, sin pedir micrófono. El servicio ejecuta una sola instancia en producción. No hay evidencia aún de audio real de una TV física.
