@@ -377,7 +377,7 @@ $("startListener").addEventListener("click",()=>{
       setStatus("listener","Audio CIFRADO: introduce la clave de audio privada (mínimo 16 caracteres) y reconecta.","error");
       return;
     }
-    listenerKeyPromise=HowdyE2EE.deriveKey(secret,room);
+    listenerKeyPromise=HowdyE2EE.deriveKey(secret,room).then(key=>new HowdyE2EE.FrameDecryptor(key));
     void listenerKeyPromise.catch(error=>setStatus("listener","Clave no disponible: "+error.message,"error"));
     setStatus("listener","Audio cifrado: verificando clave y esperando tramas.","live");
   };
@@ -415,8 +415,8 @@ $("startListener").addEventListener("click",()=>{
         if(listenerKeyPromise&&pendingDecrypt<8){
           pendingDecrypt++;
           decryptQueue=decryptQueue.then(async()=>{
-            const key=await listenerKeyPromise;
-            const raw=await HowdyE2EE.decryptFrame(key,msg.data);
+            const decryptor=await listenerKeyPromise;
+            const raw=await decryptor.decryptFrame(msg.data);
             if(session.listener!==ws)return;
             if(pcmPlayer?.play(HowdyE2EE.rawToPcmBase64(raw))){
               if(pcmPlayer.frames===1)setStatus("listener","● Audio descifrado de extremo a extremo.","live");
