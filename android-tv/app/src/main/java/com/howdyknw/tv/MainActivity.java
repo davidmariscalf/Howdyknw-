@@ -10,6 +10,8 @@ import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.text.method.PasswordTransformationMethod;
+import android.text.method.SingleLineTransformationMethod;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -142,9 +144,17 @@ public final class MainActivity extends Activity {
         audioSecretInput.setSingleLine(true);
         audioSecretInput.setTextColor(Color.WHITE);
         audioSecretInput.setText(AudioCrypto.newSecret());
+        audioSecretInput.setTransformationMethod(PasswordTransformationMethod.getInstance());
         audioSecretInput.setHintTextColor(0xFF8296A8);
         audioSecretInput.setHint("16-128 caracteres; solo para el receptor autorizado");
         root.addView(audioSecretInput);
+        CheckBox showPrivateKey=new CheckBox(this);
+        showPrivateKey.setText("Mostrar clave privada solo para configurarla");
+        showPrivateKey.setTextColor(0xFFB8D5DF);
+        root.addView(showPrivateKey);
+        showPrivateKey.setOnCheckedChangeListener((button,checked)->
+                audioSecretInput.setTransformationMethod(checked?SingleLineTransformationMethod.getInstance():
+                        PasswordTransformationMethod.getInstance()));
         Button regenerateSecret = new Button(this);
         regenerateSecret.setText("GENERAR OTRA CLAVE PRIVADA");
         root.addView(regenerateSecret);
@@ -592,6 +602,7 @@ public final class MainActivity extends Activity {
                 setStatus("Compartición de pantalla cancelada; nada se ha transmitido.",false);
                 return;
             }
+            audioSecretInput.setTransformationMethod(PasswordTransformationMethod.getInstance());
             Intent service=new Intent(this,ScreenShareService.class)
                     .setAction(ScreenShareService.ACTION_START)
                     .putExtra(ScreenShareService.EXTRA_RESULT,resultCode)
