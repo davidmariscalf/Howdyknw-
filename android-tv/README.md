@@ -1,6 +1,6 @@
 # Howdyknw Native TV Audio
 
-Aplicación Android TV / Google TV (versión 1.5.1) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
+Aplicación Android TV / Google TV (versión 1.6) y Android 8.0+ para capturar el **micrófono real expuesto por el sistema** mediante AudioRecord y transmitirlo, con consentimiento y permiso, al navegador receptor de Howdyknw.
 
 No es una solución para capturar el micrófono del mando que solo es accesible por el asistente del fabricante. No tiene servicios de arranque ni grabación en segundo plano; al abandonar la pantalla detiene el audio.
 
@@ -17,12 +17,20 @@ El APK resultante estará en app/build/outputs/apk/debug/app-debug.apk.
 1. Arranca el servidor raíz Howdyknw: npm install && npm start.
 2. Publica HTTPS mediante Tailscale Serve o un proxy privado con certificado válido.
 3. En un móvil/ordenador abre la web, pestaña Audio en directo, e introduce un código de sala de 8 a 16 caracteres en el receptor. Pulsa Escuchar ahora.
-4. En la TV instala la APK 1.5.1. Introduce la URL **wss://** del mismo servidor y el MISMO código de sala. La TV también muestra una **clave de audio independiente** de 32 caracteres: escríbela en el receptor web (campo «Clave de audio»).
+4. En la TV instala la APK 1.6. Introduce la URL **wss://** del mismo servidor y el MISMO código de sala. La TV también muestra una **clave de audio independiente** de 32 caracteres: escríbela en el receptor web (campo «Clave de audio»).
 5. Con todos los presentes informados, pulsa INICIAR AUDIO y acepta RECORD_AUDIO cuando el sistema lo solicite. La TV cifra cada trama PCM con AES-256-GCM antes de enviarla.
 6. La TV mostrará el dispositivo de entrada elegido, el estado TRANSMITIENDO y el nivel de entrada PCM. El receptor descifrará las tramas con la clave compartida, o mostrará error si no coincide.
 7. Pulsa DETENER; la transmisión se apaga. Al salir de la pantalla también se apaga.
 
 El servidor no conserva grabaciones ni las tramas de audio: retransmite a los oyentes presentes en la sala. En redes ajenas necesita permiso y una configuración de acceso adecuada.
+
+## Inicio rápido con QR (versión 1.6)
+
+La pantalla inicial prioriza una sola ruta: **CREAR SESIÓN RÁPIDA · MOSTRAR QR**. El botón genera una sala aleatoria de 12 caracteres y una clave de audio AES de alta entropía, y crea un QR local. Desde el teléfono, escanea el QR; la web lee ambas credenciales del fragmento de URL y ofrece un botón **Conectar y escuchar**. Después, en la TV pulsa **COMPARTIR PANTALLA Y AUDIO** y acepta el diálogo del sistema. La voz queda apagada de forma predeterminada.
+
+La dirección WSS normal de Railway está precargada, pero se puede cambiar desde **CONFIGURACIÓN MANUAL Y SERVIDOR**. Las herramientas de micrófono separado y de dictado quedan detrás de sus propios apartados desplegables.
+
+El QR es una invitación privada que da acceso al audio descifrado: nunca lo publiques. Se oculta al intentar iniciar la captura. Si cambias el servidor, la sala o la clave, debes crear un QR nuevo. Para que funcione la pantalla compartida, Railway debe ejecutar una versión de servidor que anuncie `supportsMediaShare`.
 
 ## Pantalla y pistas independientes (versión 1.5)
 
