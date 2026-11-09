@@ -299,6 +299,10 @@ public final class MainActivity extends Activity {
     }
 
     private void requestStart() {
+        if (ScreenShareService.isActive()) {
+            setStatus("Ya se está compartiendo la pantalla. Detén esa sesión antes de iniciar el micrófono por separado.",false);
+            return;
+        }
         if (running.get() || pendingStart) return;
         final String url = urlInput.getText().toString().trim();
         final String room = roomInput.getText().toString().trim().toUpperCase(Locale.ROOT);
@@ -338,6 +342,10 @@ public final class MainActivity extends Activity {
     }
 
     private void requestScreenShare() {
+        if(ScreenShareService.isActive()){
+            setStatus("La pantalla ya se comparte mediante una sesión autorizada. Usa DETENER o la notificación del sistema para finalizarla.",true);
+            return;
+        }
         if(running.get() ||socket!=null)stopStreaming(
                 "Modo micrófono detenido antes de iniciar captura de pantalla separada.");
         String room=roomInput.getText().toString().trim().toUpperCase(Locale.ROOT);
@@ -663,6 +671,10 @@ public final class MainActivity extends Activity {
 
     /** Share only the user-visible words, after another explicit tap. */
     private void shareTranscript() {
+        if (ScreenShareService.isActive()) {
+            dictationStatus.setText("Detén primero la compartición activa de pantalla y audio.");
+            return;
+        }
         if (running.get() || socket != null) {
             dictationStatus.setText("Detén primero la transmisión de audio PCM.");
             return;
