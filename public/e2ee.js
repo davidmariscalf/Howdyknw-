@@ -67,18 +67,57 @@
     if(raw.byteLength!==FRAME_SIZE)throw Error("PCM descifrado inválido");
     return new Uint8Array(raw);
   }
+  // V2 packets authenticate their media channel, so a relay cannot relabel
+  // microphone speech as TV playback or turn audio data into a screen frame.
+  const MEDIA_KINDS=new Set(["voice","tv","screen"]);
+  function mediaContext(kind){
+    if(!MEDIA_KINDS.has(kind))throw Error("Canal multimedia no válido");
+    return encoder.encode("howdyknw-media-v2|"+kind);
+  }
+  function decodeEnvelope(packet){
+    if(typeof packet!=="string"||packet.length>130000||
+       !/^[A-Za-z0-9+/]+={0,2}$/.test(packet) ||packet.length%4!==0)
+      throw Error("Sobre multimedia inválido");
+    const bytes=typeof atob==="function"?
+      Uint8Array.from(atob(packet),c=>c.charCodeAt(0)):
+      new Uint8Array(Buffer.from(packet,"base64"));
+    if(bytes.length<29 ||bytes.length>90028)throw Error("Tamaño multimedia incorrecto");
+    return bytes;
+  }
+  async function encryptMedia(key,raw,kind){
+    const data=new Uint8Array(raw);
+    if(!cryptoApi ||data.length<1||data.length>90000||
+       (kind!=="screen"&&data.length!==FRAME_SIZE))
+      throw Error("Contenido multimedia no válido");
+    const iv=cryptoApi.getRandomValues(new Uint8Array(12));
+    const encrypted=new Uint8Array(await cryptoApi.subtle.encrypt(
+      {name:"AES-GCM",iv,tagLength:128,additionalData:mediaContext(kind)},key,data));
+    const envelope=new Uint8Array(12+encrypted.length);
+    envelope.set(iv);envelope.set(encrypted,12);
+    return asBase64(envelope);
+  }
+  async function decryptMedia(key,packet,kind){
+    const bytes=decodeEnvelope(packet);
+    const raw=await cryptoApi.subtle.decrypt({
+      name:"AES-GCM",iv:bytes.slice(0,12),tagLength:128,
+      additionalData:mediaContext(kind)
+    },key,bytes.slice(12));
+    if((kind==="voice"||kind==="tv")&&raw.byteLength!==FRAME_SIZE)
+      throw Error("Tamaño PCM incorrecto");
+    return new Uint8Array(raw);
+  }
   class FrameDecryptor{
     constructor(key){
       this.key=key;
       this.recent=new Set();
     }
-    async decryptFrame(packet){
+    async decryptFrame(packet,kind=null){
       if(typeof packet!=="string"||!/^[A-Za-z0-9+/]{891}=$/.test(packet))
         throw Error("Trama cifrada inválida");
       // Exactly 12 nonce bytes = 16 Base64 characters.
       const nonce=packet.slice(0,16);
       if(this.recent.has(nonce))throw Error("Trama cifrada repetida");
-      const raw=await decryptFrame(this.key,packet);
+      const raw=kind===null?await decryptFrame(this.key,packet):await decryptMedia(this.key,packet,kind);
       this.recent.add(nonce);
       if(this.recent.size>8192)this.recent.delete(this.recent.values().next().value);
       return raw;
@@ -88,5 +127,5 @@
     if(bytes.length!==FRAME_SIZE)throw Error("Tamaño PCM inválido");
     return asBase64(bytes);
   }
-  return {deriveKey,encryptFrame,decryptFrame,makeSecret,rawToPcmBase64,validSecret,FrameDecryptor,FRAME_SIZE,ENVELOPE_SIZE};
+  return {deriveKey,encryptFrame,decryptFrame,encryptMedia,decryptMedia,makeSecret,rawToPcmBase64,validSecret,FrameDecryptor,FRAME_SIZE,ENVELOPE_SIZE};
 });
