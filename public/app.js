@@ -67,6 +67,17 @@ function clearScreenAndChannels(preserveAudioPlayers=false){
   $("voiceAudioVolume").disabled=false;
   $("screenAudioStatus").textContent="No se ha iniciado una sesión de pantalla y audio independiente.";
 }
+$("screenFullscreen").addEventListener("click",async()=>{
+  const target=$("tvScreen").parentElement;
+  if(!target?.requestFullscreen){
+    $("screenState").textContent="Pantalla completa no disponible en este navegador.";
+    return;
+  }
+  try{await target.requestFullscreen();}
+  catch{
+    $("screenState").textContent="El navegador no permite abrir pantalla completa.";
+  }
+});
 volumeControl.addEventListener("input",applyListenerVolume);
 applyListenerVolume();
 function setNativeMode(active){
@@ -299,8 +310,25 @@ $("generateRoom").addEventListener("click",()=>{
 });
 $("sourceRoom").value=makeCode();
 const inviteParams=new URLSearchParams(location.hash.slice(1));
-$("listenerRoom").value=(inviteParams.get("room")||new URLSearchParams(location.search).get("room"))?.trim().toUpperCase()||$("sourceRoom").value;
-if(inviteParams.has("audioKey"))$("listenerSecret").value=inviteParams.get("audioKey").slice(0,128);
+const secureInvite=HowdyPairing.parseInvite(location.hash);
+$("listenerRoom").value=(secureInvite?.room||inviteParams.get("room")||
+  new URLSearchParams(location.search).get("room"))?.trim().toUpperCase()||$("sourceRoom").value;
+if(secureInvite){
+  $("listenerSecret").value=secureInvite.audioKey;
+  $("quickJoinPanel").hidden=false;
+  $("quickJoinMessage").textContent="Sala "+secureInvite.room+" y clave de audio privada listas. Pulsa Conectar y escuchar; no hace falta escribir nada.";
+}
+// Remove the invitation key from the address bar/history once imported.
+// It is needed in the local input for decryption, never sent to the server.
+if(inviteParams.has("audioKey"))history.replaceState(null,"",location.pathname+location.search);
+$("quickJoinButton").addEventListener("click",()=>{
+  if(session.listener){$("quickJoinPanel").hidden=true;return;}
+  $("startListener").click();
+  $("quickJoinPanel").hidden=true;
+});
+$("quickJoinDismiss").addEventListener("click",()=>{
+  $("quickJoinPanel").hidden=true;
+});
 $("sourceRoom").addEventListener("input",()=>{if(!session.listener)$("listenerRoom").value=$("sourceRoom").value.toUpperCase();});
 $("copyRoom").addEventListener("click",async()=>{
   const url=new URL(location.href);url.search="";url.hash="room="+encodeURIComponent($("sourceRoom").value.trim().toUpperCase());
@@ -312,11 +340,11 @@ $("copySecureInvite").addEventListener("click",async()=>{
   const secret=$("sourceSecret").value.trim();
   if(!ROOM_PATTERN.test(room)||!HowdyE2EE.validSecret(secret))
     return setStatus("source","Introduce sala válida y clave privada antes de compartir.","error");
-  const url=new URL(location.href);
-  url.search="";
-  url.hash=new URLSearchParams({room,audioKey:secret}).toString();
+  let url;
+  try{url=HowdyPairing.buildInvite(location.origin+"/",room,secret);}
+  catch(error){return setStatus("source",error.message,"error");}
   try{
-    await navigator.clipboard.writeText(url.href);
+    await navigator.clipboard.writeText(url);
     $("copySecureInvite").textContent="Invitación cifrada copiada ✓";
   }catch{
     $("copySecureInvite").textContent="No se pudo copiar: revisa permisos del portapapeles";
