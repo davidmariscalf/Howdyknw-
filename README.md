@@ -16,6 +16,19 @@ Proyecto multisoporte para estudiar el tráfico de red de televisores propios y 
 
 El [informe de auditoría](docs/AUDIT_2026-11-09.md) distingue las pruebas automáticas de lo que **todavía requiere comprobarse en dispositivos físicos**.
 
+## Nueva función: pantalla TV y audio por separado (Android TV 1.5)
+
+La APK 1.5 añade un botón **COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO**, que abre el diálogo oficial de Android. Solo tras autorizarlo inicia un **servicio de captura visible** con notificación permanente y acción «DETENER AHORA».
+
+En la web del receptor aparecen una vista previa cifrada de la imagen de la TV (JPEG **aprox. 1 imagen/s**, no vídeo fluido) y dos controles independientes:
+
+- **Sonido de la televisión**: entrada de reproducción de apps Android que permiten `AudioPlaybackCapture`. No es sonido de todo el sistema ni de HDMI protegido.
+- **Voz del micrófono**: entrada real autorizada. Puede captar por el aire también los altavoces de la TV, de modo que **no es separación perfecta de voz y música**.
+
+El servidor solo retransmite la imagen y audio cifrados con AES-GCM autenticado por canal; no recibe la clave privada. Contenido DRM o HDMI puede aparecer en negro o sin audio. La función requiere Android TV compatible y **no está probada aún en una TV física**. Instrucciones detalladas y límites: [pantalla y audio separados](docs/SCREEN_AND_SEPARATE_AUDIO.md).
+
+**Atención al despliegue:** los cambios están en GitHub; Railway puede continuar sirviendo un commit antiguo hasta que se autorice la integración con el repositorio y se publique la versión más reciente. El servidor antiguo no soporta `screen-frame` ni `media-frame`.
+
 ## Recuperación de micrófono (Android TV 1.4)
 
 La nueva APK 1.4 añade **REINTENTAR Y PROBAR OTRA ENTRADA**, comprueba el permiso `RECORD_AUDIO` y si el sistema tiene silenciado el micrófono. Cuando una fuente falla, prueba `MIC`, `VOICE_RECOGNITION` y `DEFAULT` (fuentes normales de Android, no privadas). Si el micrófono abre pero no entrega señal apreciable, informa del problema y permite cambiar manualmente de fuente, sin ocultar la captura ni transmitir audio cuando no hay receptores. También permite abrir los ajustes de permisos; si falla el PCM, mantiene la opción de teclado y reconocimiento de voz, **solo texto**.
@@ -26,7 +39,7 @@ En la fuente web ahora puedes consultar los micrófonos autorizados del navegado
 
 | Plataforma | Audio en directo | Teclado/dictado del sistema | Estado |
 |---|---|---|---|
-| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.4 con recuperación de entradas y PCM AES-GCM; pruebas físicas pendientes |
+| Android TV / Google TV | AudioRecord (solo si Android permite abrir una entrada PCM real) | Gboard/IME o reconocimiento por Intent; texto compartido manualmente | APK debug 1.5 con pantalla autorizada, pistas TV/voz separadas y PCM AES-GCM; prueba física pendiente |
 | Samsung Tizen | getUserMedia/WebRTC si existen y están permitidos | Campo de texto, teclado Tizen y compartir texto manualmente | Código fuente; falta firma Tizen y prueba física |
 | Navegador en Smart TV / móvil / PC | getUserMedia/WebRTC cuando existe | Campo de texto y teclado del dispositivo (voz si existe) | Integrado en la web; depende del navegador |
 
@@ -85,7 +98,7 @@ Abre la URL HTTPS proporcionada en la TV y en el receptor. Usa el mismo código 
 
 El audio PCM16 de Android TV se transporta por WSS al servidor; no necesita WebRTC en el emisor. El modo web/Tizen utiliza WebRTC si está disponible.
 
-## Android TV / Google TV — APK 1.4
+## Android TV / Google TV — APK 1.5
 
 El código está en [android-tv/](android-tv/), con una compilación de APK debug por GitHub Actions:
 https://github.com/davidmariscalf/Howdyknw-/actions/workflows/android-tv.yml
