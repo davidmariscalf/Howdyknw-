@@ -141,7 +141,9 @@ public final class ScreenShareService extends Service {
         PendingIntent stop=PendingIntent.getService(this,1,stopIntent,flag);
         return new Notification.Builder(this,CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_menu_view)
-                .setContentTitle("Howdyknw · compartiendo pantalla y audio")
+                .setContentTitle(sharePlayback||shareVoice?
+                        "Howdyknw · pantalla y audio autorizados":
+                        "Howdyknw · solo pantalla autorizada")
                 .setContentText(text)
                 .setOngoing(true)
                 .addAction(android.R.drawable.ic_media_pause,"DETENER AHORA",stop)
