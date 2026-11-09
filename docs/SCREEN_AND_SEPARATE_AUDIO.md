@@ -11,6 +11,12 @@ La imagen es una **vista previa JPEG de 1 imagen por segundo de forma predetermi
 
 Android puede negar `MediaProjection` o `AudioPlaybackCapture` en una televisión concreta, según su versión y fabricante. **Compilar el APK y superar pruebas simuladas no demuestra que la TV real permita estas capturas.**
 
+## Versión 1.6: emparejar sin escribir códigos
+
+En la TV pulsa una vez **Crear sesión rápida**. Escanea su QR privado con el teléfono. La web importa sala y clave AES cifrada, y con un toque en **Conectar y escuchar** queda listo el receptor. El fragmento URL que transporta la clave se borra de la dirección visible al importarlo. Finalmente, pulsa Compartir en la TV y confirma el permiso oficial de Android. No se automatiza la autorización de pantalla ni se activa el micrófono a escondidas.
+
+Las opciones de servidor/clave manual, micrófono independiente y teclado se mantienen accesibles en apartados desplegables.
+
 ## Activación paso a paso
 
 1. Instala la APK 1.5 en una Android TV / Google TV propia. Para la sesión de prueba utiliza `wss://howdyknw-production.up.railway.app/` solamente cuando el servidor tenga desplegada la versión actualizada; la versión anterior del servidor **no reconocerá** fotogramas `screen-frame` ni pistas `media-frame`.
