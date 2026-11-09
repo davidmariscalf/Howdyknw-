@@ -16,6 +16,23 @@ Proyecto multisoporte para estudiar el tráfico de red de televisores propios y 
 
 El [informe de auditoría](docs/AUDIT_2026-11-09.md) distingue las pruebas automáticas de lo que **todavía requiere comprobarse en dispositivos físicos**.
 
+## Emparejamiento inmediato en la versión 1.6
+
+La APK Android TV 1.6 pone primero el flujo **CREAR SESIÓN RÁPIDA · MOSTRAR QR**. Un único botón genera un código de sala y una clave AES-GCM nuevos en la propia TV; no se envían a un servidor de configuración. Aparece un QR que contiene una invitación `https://.../#room=...&audioKey=...`. La clave queda en el fragmento de la URL, no en la petición HTTP.
+
+**Flujo mínimo:**
+
+1. En la TV pulsa «Crear sesión rápida». Aparece el QR privado, con la sala y la clave preparadas.
+2. Escanéalo desde el móvil. La web valida la invitación, introduce sala y clave automáticamente, limpia la clave de la barra de direcciones y muestra **Conectar y escuchar**.
+3. En la TV pulsa **Compartir pantalla y audio** y confirma el permiso oficial de Android. El sonido de aplicaciones está preseleccionado, pero la captura de **voz** está desactivada por defecto.
+4. Para terminar, utiliza la notificación permanente o el botón Detener de la TV.
+
+Esto reduce escritura de códigos y ajustes manuales, **pero no omite consentimientos** ni garantiza que Android permita capturar pantalla o sonido protegido. El QR contiene la clave privada: solo se debe escanear por alguien autorizado. Si el usuario modifica sala/clave/servidor, se invalida el QR anterior; se oculta antes de iniciar una captura para que la clave no aparezca en los fotogramas compartidos.
+
+La interfaz básica deja escondidas en secciones desplegables la configuración manual de servidor, el modo solo micrófono y el teclado. El receptor añade vista de imagen a pantalla completa.
+
+**Importante:** la versión 1.6 está en el código de GitHub. Railway debe desplegar este mismo commit para que la captura cifrada de pantalla funcione con el servidor; no basta con instalar una APK nueva contra un servidor antiguo.
+
 ## Nueva función: pantalla TV y audio por separado (Android TV 1.5.1)
 
 La APK 1.5.1 incorpora un botón **COMPARTIR PANTALLA Y AUDIO · PEDIR PERMISO**, que abre el diálogo oficial de Android. Solo tras autorizarlo inicia un **servicio de captura visible** con notificación permanente y acción «DETENER AHORA».
