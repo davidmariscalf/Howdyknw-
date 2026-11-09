@@ -5,6 +5,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.provider.Settings;
+import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -75,6 +77,8 @@ public final class MainActivity extends Activity {
     private WebSocket transcriptSocket;
     private Button startButton;
     private Button stopButton;
+    private TextView recoveryView;
+    private Button recoveryButton;
     private boolean pendingStart = false;
     private String roomCode;
 
@@ -114,7 +118,7 @@ public final class MainActivity extends Activity {
         root.addView(label("Dirección WSS del servidor (HTTPS privado o certificado válido)", 16, 0xFFB8D5DF));
         urlInput = new EditText(this);
         urlInput.setSingleLine(true);
-        urlInput.setText("wss://tu-servidor.ts.net/");
+        urlInput.setText("wss://howdyknw-production.up.railway.app/");
         urlInput.setTextColor(Color.WHITE);
         urlInput.setHintTextColor(0xFF8296A8);
         urlInput.setHint("wss://equipo.ts.net/");
@@ -155,6 +159,21 @@ public final class MainActivity extends Activity {
         stopButton.setText("DETENER Y APAGAR MICRÓFONO");
         stopButton.setEnabled(false);
         root.addView(stopButton);
+        recoveryView = label("Si el micrófono falla, Howdyknw probará varias fuentes de audio autorizadas y ofrecerá opciones de recuperación.", 15, 0xFF9DCDE0);
+        root.addView(recoveryView);
+        recoveryButton = new Button(this);
+        recoveryButton.setText("REINTENTAR Y PROBAR OTRA ENTRADA");
+        root.addView(recoveryButton);
+        Button appSettingsButton = new Button(this);
+        appSettingsButton.setText("ABRIR AJUSTES DEL PERMISO DE MICRÓFONO");
+        root.addView(appSettingsButton);
+        recoveryButton.setOnClickListener(v -> {
+            if (pendingStart) return;
+            if (socket != null || running.get()) stopStreaming("Reintento solicitado. Deteniendo entrada anterior.");
+            showMicDevices();
+            requestStart();
+        });
+        appSettingsButton.setOnClickListener(v -> openMicrophoneSettings());
 
         statusView = label("INACTIVO · EL MICRÓFONO NO ESTÁ TRANSMITIENDO", 18, 0xFFCCDDE7);
         root.addView(statusView);
@@ -270,6 +289,7 @@ public final class MainActivity extends Activity {
         if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
             requestStart();
         } else {
+            showRecoveryAdvice("Permiso de micrófono denegado. Revisa los ajustes de la app y el interruptor de privacidad del dispositivo. No se ha capturado audio.");
             setStatus("Permiso de micrófono denegado. No se ha capturado audio.", false);
         }
     }
@@ -346,25 +366,21 @@ public final class MainActivity extends Activity {
             stopStreaming("Sin permiso de micrófono.");
             return;
         }
-        final int min = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-        if (min <= 0) { stopStreaming("No hay entrada PCM 16 kHz disponible."); return; }
-        try {
-            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                    Math.max(min, FRAME_BYTES * 8));
-            if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
-                stopStreaming("El fabricante no permite abrir este micrófono.");
-                return;
-            }
-            recorder.startRecording();
-            if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
-                stopStreaming("La entrada de audio no ha comenzado.");
-                return;
-            }
-        } catch (Exception ex) {
-            stopStreaming("No se pudo activar la entrada de audio: " + ex.getMessage()); return;
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        if (audioManager != null && audioManager.isMicrophoneMute()) {
+            showRecoveryAdvice("El micrófono está silenciado por Android. Comprueba el control de privacidad del sistema y vuelve a pulsar REINTENTAR. Howdyknw no desactiva ese control.");
+            stopStreaming("El sistema tiene el micrófono silenciado.");
+            return;
         }
+        MicRecovery.Result result = MicRecovery.open(SAMPLE_RATE, FRAME_BYTES);
+        if (result.recorder == null) {
+            showRecoveryAdvice(result.error);
+            stopStreaming("No se pudo iniciar una entrada de micrófono autorizada.");
+            return;
+        }
+        recorder = result.recorder;
+        recoveryView.setText("Micrófono iniciado con fuente autorizada: " + result.routeLabel
+                + ". Comprueba el nivel PCM; iniciar AudioRecord no garantiza que la TV entregue sonido.");
         running.set(true);
         setStatus(activeListeners.get() > 0
                 ? "● TRANSMITIENDO CIFRADO · MICRÓFONO ACTIVO · CÓDIGO " + roomCode
@@ -372,6 +388,8 @@ public final class MainActivity extends Activity {
         AudioDeviceInfo route = recorder.getRoutedDevice();
         if (route != null) micView.setText("Entrada realmente utilizada: "
                 + route.getProductName() + " (tipo " + route.getType() + ")");
+        else micView.setText("Fuente iniciada: " + result.routeLabel
+                + "; ruta física desconocida. Comprueba el nivel PCM.");
         final AudioRecord activeRecorder = recorder;
         final WebSocket activeSocket = socket;
         audioThread = new Thread(() -> captureLoop(activeRecorder, activeSocket), "howdyknw-mic");
@@ -419,6 +437,22 @@ public final class MainActivity extends Activity {
                 stopStreaming("El micrófono dejó de entregar audio o se cortó la conexión."));
     }
 
+
+    private void showRecoveryAdvice(String reason) {
+        recoveryView.setText(reason + "\nOpciones: REINTENTAR otra entrada; revisar permisos y privacidad; probar reconocimiento del sistema o el teclado (solo texto).");
+    }
+
+    private void openMicrophoneSettings() {
+        if (socket != null || running.get()) stopStreaming("Micrófono detenido antes de abrir Ajustes.");
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getPackageName()));
+        try {
+            startActivity(intent);
+            showRecoveryAdvice("Abre Permisos → Micrófono; vuelve a Howdyknw y pulsa REINTENTAR. También comprueba el micrófono físico o USB.");
+        } catch (ActivityNotFoundException | SecurityException e) {
+            showRecoveryAdvice("Esta TV no permite abrir los ajustes directamente. Ve a Ajustes → Aplicaciones → Howdyknw → Permisos.");
+        }
+    }
 
     /** Focus an ordinary EditText; Android TV Gboard may offer its own voice-input key. */
     private void showSystemKeyboard() {
